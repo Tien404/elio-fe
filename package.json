@@ -14,7 +14,7 @@
     "format:check": "prettier --check .",
     "check": "npm run typecheck && npm run lint && npm run format:check",
     "lint:staged": "lint-staged --cwd .",
-    "prepare": "cd .. && husky frontend/.husky"
+    "prepare": "husky .husky"
   },
   "dependencies": {
     "react": "19.3.1",

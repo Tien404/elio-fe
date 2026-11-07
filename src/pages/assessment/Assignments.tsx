@@ -1,0 +1,172 @@
+import { ActionButton as Button } from '@/components/workspace/WorkspaceUI'
+import { useCallback, useState } from 'react'
+import { Link, useSearchParams, useNavigate } from 'react-router'
+import { DataTable, Field, Panel, PageHeader, EmptyState } from '@/components/ui'
+import { Badge, LoadState, Pager, Select } from '@/components/workspace/WorkspaceUI'
+import { AssignmentEditor } from '@/components/assessment/AssignmentEditor'
+import { services, apiMode } from '@/services'
+import { useResource } from '@/services/use-resource'
+import { useAuth } from '@/services/auth-context'
+import { formatInstant } from '@/services/presentation'
+export function Assignments({ offeringId: fixedId }: { offeringId?: number }) {
+  const { identity } = useAuth(),
+    [params, setParams] = useSearchParams(),
+    navigate = useNavigate(),
+    [create, setCreate] = useState(false)
+  const offeringId = fixedId ?? (Number(params.get('offeringId')) || undefined),
+    search = params.get('search') ?? '',
+    status = params.get('status') ?? '',
+    mode = params.get('mode') ?? '',
+    page = Number(params.get('page')) || 1
+  const load = useCallback(
+      () => services.assessment.list({ offeringId, search, status, mode, page }),
+      [offeringId, search, status, mode, page],
+    ),
+    result = useResource(
+      load,
+      `assignments:${identity!.me.account.id}:${offeringId}:${search}:${status}:${mode}:${page}`,
+    )
+  const loadSections = useCallback(() => services.courses.list({ pageSize: 100 }), []),
+    sections = useResource(loadSections, `assignment-sections:${identity!.me.account.id}`)
+  function filter(key: string, value: string) {
+    setParams((p) => {
+      if (value) p.set(key, value)
+      else p.delete(key)
+      p.delete('page')
+      return p
+    })
+  }
+  const teacher = identity!.me.account.role === 'INSTRUCTOR',
+    writable = sections.data?.items.find((v) => v.offering.id === offeringId)?.permissions.teach
+  return (
+    <div className="course-workspace">
+      <PageHeader
+        title={teacher ? 'Manage assignments' : 'Assignments'}
+        actions={
+          <>
+            {teacher && (
+              <div className="actions">
+                <Button
+                  icon="add"
+                  disabled={!offeringId || !writable}
+                  onClick={() => setCreate(true)}
+                >
+                  Create assignment
+                </Button>
+                {!offeringId && <p>Select a course section to create an assignment.</p>}
+              </div>
+            )}
+          </>
+        }
+      />
+      <Panel title="All assignments" icon="assignments">
+        <div className="filters">
+          <Field
+            label="Search assignments"
+            value={search}
+            onChange={(e) => filter('search', e.target.value)}
+          />
+          <Select label="Mode" value={mode} onChange={(e) => filter('mode', e.target.value)}>
+            <option value="">All modes</option>
+            <option value="INDIVIDUAL">Individual</option>
+            {!apiMode && <option value="GROUP">Group</option>}
+          </Select>
+          {teacher && (
+            <Select
+              label="Status"
+              value={status}
+              onChange={(e) => filter('status', e.target.value)}
+            >
+              <option value="">All statuses</option>
+              <option value="DRAFT">Draft</option>
+              <option value="PUBLISHED">Published</option>
+              <option value="ARCHIVED">Archived</option>
+            </Select>
+          )}
+          {!fixedId && (
+            <Select
+              label="Course section"
+              value={offeringId ?? ''}
+              onChange={(e) => filter('offeringId', e.target.value)}
+            >
+              <option value="">All course sections</option>
+              {sections.data?.items.map((v) => (
+                <option key={v.offering.id} value={v.offering.id}>
+                  {v.offering.courseCode} · {v.offering.sectionCode} · {v.offering.semester}
+                </option>
+              ))}
+            </Select>
+          )}
+        </div>
+        <LoadState {...result} retry={result.reload} />
+        {result.data &&
+          (result.data.items.length ? (
+            <>
+              <DataTable
+                rows={result.data.items}
+                rowKey={(v) => v.assignment.id}
+                columns={[
+                  {
+                    label: 'Assignment',
+                    render: (v) => (
+                      <>
+                        <Link to={`/assignments/${v.assignment.id}`}>{v.assignment.title}</Link>
+                        <small>{v.offeringLabel}</small>
+                      </>
+                    ),
+                  },
+                  {
+                    label: 'Mode',
+                    render: (v) => (v.assignment.mode === 'GROUP' ? 'Group' : 'Individual'),
+                  },
+                  { label: 'Deadline', render: (v) => formatInstant(v.assignment.dueAt) },
+                  {
+                    label: 'Status',
+                    render: (v) => (
+                      <>
+                        <Badge value={v.assignment.status} />
+                        <small>
+                          {teacher
+                            ? `${v.assignment.weight}% weight`
+                            : v.submission?.currentVersion
+                              ? `Version ${v.submission.currentVersion.versionNo} · ${v.submission.currentVersion.isLate ? 'Late' : 'On time'}`
+                              : v.assignment.mode === 'GROUP' && !v.group
+                                ? 'Group not assigned'
+                                : 'Not submitted'}
+                        </small>
+                      </>
+                    ),
+                  },
+                ]}
+              />
+              <Pager
+                value={result.data}
+                change={(p) =>
+                  setParams((prev) => {
+                    prev.set('page', String(p))
+                    return prev
+                  })
+                }
+              />
+            </>
+          ) : (
+            <EmptyState
+              title="No assignments found"
+              description="Try a different course section or search term."
+              icon="assignments"
+            />
+          ))}
+      </Panel>
+      {create && offeringId && (
+        <AssignmentEditor
+          offeringId={offeringId}
+          close={() => setCreate(false)}
+          saved={(id) => {
+            setCreate(false)
+            navigate(`/assignments/${id}`)
+          }}
+        />
+      )}
+    </div>
+  )
+}

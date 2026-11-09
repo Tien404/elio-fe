@@ -109,10 +109,7 @@ export function validateAssets(
       f.byteSize < 1 ||
       f.byteSize > 20_000_000
     )
-      throw new ServiceError(
-        422,
-        'Files must match this section and purpose, each at most 20,000,000 bytes.',
-      )
+      throw new ServiceError(422, 'Files must match this section and purpose, each at most 20MB.')
     if (existing.includes(id) && f.state !== 'ATTACHED')
       throw new ServiceError(409, 'A previously attached file is no longer available.')
     if (!existing.includes(id)) {

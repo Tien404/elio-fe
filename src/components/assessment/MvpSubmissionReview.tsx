@@ -42,7 +42,6 @@ export function MvpSubmissionReview({ id }: { id: number }) {
           <FileList files={detail.data!.files.filter((f) => v.fileIds.includes(f.id))} />
         </details>
       ))}
-      <p>Grading and publication are available after MVP.</p>
     </Panel>
   )
 }

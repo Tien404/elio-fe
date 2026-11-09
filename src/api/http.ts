@@ -42,7 +42,7 @@ export async function http<T>(path: string, init: RequestInit = {}): Promise<T> 
     throw new ServiceError(
       response.status,
       response.status === 501
-        ? 'This feature is available after MVP and is not supported yet.'
+        ? 'This feature is unavailable.'
         : (problem?.detail ?? `Request failed (${response.status}).`),
       problem?.code ? { code: problem.code } : {},
     )
@@ -59,5 +59,5 @@ export const json = (method: string, body: unknown, version?: number): RequestIn
   headers: version === undefined ? {} : { 'If-Match': `"${version}"` },
 })
 export async function unsupported(): Promise<never> {
-  throw new ServiceError(501, 'This feature is available after MVP and is not supported yet.')
+  throw new ServiceError(501, 'This feature is unavailable.')
 }

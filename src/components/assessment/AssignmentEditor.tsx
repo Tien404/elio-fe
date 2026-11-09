@@ -100,10 +100,6 @@ export function AssignmentEditor({
         </>
       ) : (
         <>
-          <Status>
-            Open time ≤ submission deadline ≤ submission lock time. Submission mode cannot change
-            after publication. Deadlines can be extended until grading begins.
-          </Status>
           <fieldset disabled={action.pending || !!published}>
             <Field
               label="Title"

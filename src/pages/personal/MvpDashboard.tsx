@@ -10,7 +10,7 @@ export function MvpDashboard() {
   const result = useResource(load, 'mvp-dashboard')
   const view = result.data
   return (
-    <div className="course-workspace">
+    <div className="course-workspace dashboard-workspace">
       <h1>Dashboard</h1>
       <LoadState {...result} retry={result.reload} />
       {view && (
@@ -61,10 +61,6 @@ export function MvpDashboard() {
           )}
           <Panel title="Workspace" icon="info">
             <Link to="/offerings">Open course sections</Link>
-            <p>
-              Grading, results, quizzes, inbox, calendar and progress reports are not supported in
-              MVP.
-            </p>
           </Panel>
         </>
       )}

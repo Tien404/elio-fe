@@ -110,7 +110,9 @@ export const apiCourses: CourseService = {
           action === 'restore' ? 'POST' : 'PATCH',
           action === 'restore'
             ? { reason }
-            : { status: action === 'publish' ? 'OPEN' : 'ARCHIVED', reason },
+            : action === 'publish'
+              ? { status: 'OPEN' }
+              : { status: 'ARCHIVED', reason },
           version,
         ),
       ),

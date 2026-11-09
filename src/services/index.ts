@@ -33,7 +33,7 @@ const source = import.meta.env.VITE_DATA_SOURCE || 'api'
 export const apiMode = source === 'api'
 if (source !== 'mock' && source !== 'api') throw new Error('VITE_DATA_SOURCE must be mock or api.')
 const unavailable = async (): Promise<never> => {
-  throw new ServiceError(501, 'This feature is available after MVP and is not supported yet.')
+  throw new ServiceError(501, 'This feature is unavailable.')
 }
 const apiWorkspace: WorkspaceService = {
   listOfferings: async () =>

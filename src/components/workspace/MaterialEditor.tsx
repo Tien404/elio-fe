@@ -10,7 +10,7 @@ import {
 } from '@/components/workspace/WorkspaceUI'
 import type { MaterialView } from '@/services/course-contracts'
 import type { FileAsset, Resource } from '@/services/contracts'
-import { services } from '@/services'
+import { apiMode, services } from '@/services'
 import { useAction } from '@/services/use-action'
 import { useResource } from '@/services/use-resource'
 
@@ -63,8 +63,11 @@ export function MaterialEditor({
   useEffect(() => {
     document.getElementById(`${focusId}-${preview ? 'preview' : 'title'}`)?.focus()
   }, [focusId, preview])
+  const needsUpload = kind === 'FILE' && !asset
+  const busy = action.pending || upload.pending
   function submit(event: FormEvent) {
     event.preventDefault()
+    if (busy || needsUpload) return
     const status =
       (event.nativeEvent as SubmitEvent).submitter?.getAttribute('value') === 'PUBLISHED'
         ? 'PUBLISHED'
@@ -89,7 +92,6 @@ export function MaterialEditor({
       close,
     )
   }
-  const busy = action.pending || upload.pending
   return (
     <Dialog
       title={
@@ -189,16 +191,19 @@ export function MaterialEditor({
               <Field
                 label="Material file"
                 type="file"
+                disabled={busy}
                 onChange={(e) => {
                   setFile(e.target.files?.[0] ?? null)
                   setAsset(null)
                   upload.clear()
+                  action.clear()
                 }}
               />
               <p>
-                Up to 50,000,000 bytes. Upload first, then save the material. Demo file bytes do not
-                survive reload; select again when required.
+                Up to 50 MB. Choose a file, then click Upload file before saving or publishing.
+                {!apiMode && ' Demo files are kept until the page reloads.'}
               </p>
+              {file && !asset && !upload.pending && <p>File selected. Click Upload file.</p>}
               {asset && (
                 <p>
                   {asset.originalName} · {asset.byteSize.toLocaleString('en-US')} bytes ·{' '}
@@ -207,12 +212,15 @@ export function MaterialEditor({
               )}
               <ActionButton
                 tone="secondary"
-                disabled={busy || !file}
+                disabled={busy || !file || !!asset}
                 onClick={() =>
                   file &&
                   void upload.run(
                     () => services.files.stage(file, offeringId, 'MATERIAL'),
-                    (result) => setAsset(result),
+                    (result) => {
+                      setAsset(result)
+                      action.clear()
+                    },
                     'File uploaded. Save the material to attach it.',
                   )
                 }
@@ -243,7 +251,7 @@ export function MaterialEditor({
               tone="secondary"
               type="submit"
               value="DRAFT"
-              disabled={busy}
+              disabled={busy || needsUpload}
             >
               {action.pending ? 'Saving…' : 'Save draft'}
             </ActionButton>
@@ -255,7 +263,12 @@ export function MaterialEditor({
             >
               Preview
             </ActionButton>
-            <ActionButton icon="publish-small" type="submit" value="PUBLISHED" disabled={busy}>
+            <ActionButton
+              icon="publish-small"
+              type="submit"
+              value="PUBLISHED"
+              disabled={busy || needsUpload}
+            >
               {action.pending ? 'Saving…' : 'Publish'}
             </ActionButton>
           </div>

@@ -60,7 +60,6 @@ export function MvpSubmissionComposer({
         <>
           <Status>
             Reload the latest submission and inspect its version before starting another upload.
-            Automatic retry and receipt lookup are not supported in MVP.
           </Status>
           <ActionButton tone="secondary" onClick={() => window.location.reload()}>
             Reload submission

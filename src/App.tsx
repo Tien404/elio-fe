@@ -83,8 +83,7 @@ function PasswordRoute() {
 function Unsupported() {
   return (
     <div className="course-workspace">
-      <h1>Available after MVP</h1>
-      <Status>This feature is not supported yet.</Status>
+      <h1>Feature unavailable</h1>
     </div>
   )
 }

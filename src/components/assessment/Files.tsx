@@ -72,7 +72,7 @@ export function FileUploader({
     if (!selected.length || files.length + selected.length > 5)
       throw new Error('Select files; at most 5 files are allowed.')
     if (selected.some((f) => f.size < 1 || f.size > 20_000_000))
-      throw new Error('Each file must contain 1–20,000,000 bytes.')
+      throw new Error('Each file must be non-empty and no larger than 20MB.')
     const uploaded = [...files]
     for (const file of selected) {
       setProgress(`Uploading ${file.name}…`)
@@ -81,13 +81,13 @@ export function FileUploader({
       change([...uploaded])
     }
     setSelected([])
-    setProgress('Files uploaded. Review and explicitly confirm or save to attach them.')
+    setProgress('Files uploaded.')
   }
   return (
     <fieldset className="assessment-upload" disabled={disabled || action.pending}>
       <legend>
-        {purpose === 'SUBMISSION' ? 'Submission files' : 'Assignment attachments'} · up to 5 ×
-        20,000,000 bytes
+        {purpose === 'SUBMISSION' ? 'Submission files' : 'Assignment attachments'} · Up to 5 files ·
+        20MB each
       </legend>
       <FileList files={files} remove={(id) => change(files.filter((f) => f.id !== id))} />
       <Field

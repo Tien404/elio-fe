@@ -35,7 +35,7 @@ export async function http<T>(path: string, init: RequestInit = {}): Promise<T> 
       code?: string
       currentVersion?: number
     } | null
-    if (response.status === 401) {
+    if (response.status === 401 && identity) {
       identity = null
       window.dispatchEvent(new Event('elio:expired'))
     }

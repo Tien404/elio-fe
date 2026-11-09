@@ -805,7 +805,6 @@ tbody tr:has(a, button):hover {
   }
 }
 
-/* Workspace tables and forms share the S03–S07 ELIO surface and control tokens. */
 .course-workspace {
   min-width: 0;
 }
@@ -2487,7 +2486,6 @@ textarea {
   border-radius: 50%;
   font-weight: 500;
 }
-/* Summary illustrations preserve the reference's two-tone colors. */
 .metric-artwork {
   display: grid;
   place-items: center;

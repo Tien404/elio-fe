@@ -10,7 +10,7 @@ import { Button, Dialog, Icon, NavigationButton, Status } from '@/components/ui'
 import { SelectControl } from '@/components/SelectControl'
 import { Spinner } from '@/components/LoadingBoundary'
 import { LoadingContext } from '@/services/loading-context'
-import { ServiceError } from '@/services/errors'
+import { mustReview, ServiceError } from '@/services/errors'
 import type { Page } from '@/services/course-contracts'
 import { useAction } from '@/services/use-action'
 
@@ -145,8 +145,8 @@ export function Feedback({
         <Status error>
           {action.error.message}
           {review &&
-            action.error instanceof ServiceError &&
-            [409, 412].includes(action.error.status) && (
+            (mustReview(action.error) ||
+              (action.error instanceof ServiceError && action.error.status === 409)) && (
               <div className="actions">
                 <Button tone="secondary" onClick={review}>
                   Discard input and reload saved values

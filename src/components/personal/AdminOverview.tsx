@@ -1,21 +1,27 @@
 import { Link } from 'react-router'
 import { DataTable, Panel, Status } from '@/components/ui'
-import type { services } from '@/services'
+import { apiMode, type services } from '@/services'
 type View = Awaited<ReturnType<typeof services.personal.dashboard>>
 export function AdminOverview({ view }: { view: View }) {
+  const metrics = [
+    'Accounts',
+    'Locked accounts',
+    'Open course sections',
+    ...(apiMode
+      ? ['Pending registrations', 'Archived classes requiring lead repair']
+      : ['Operational audit entries']),
+  ]
   return (
     <>
       <div className="metric-grid">
-        {['Accounts', 'Locked accounts', 'Open course sections', 'Operational audit entries'].map(
-          (label, i) => (
-            <div className="metric-card" key={label}>
-              <div>
-                <p>{label}</p>
-                <strong>{view.metrics[i]}</strong>
-              </div>
+        {metrics.map((label, i) => (
+          <div className="metric-card" key={label}>
+            <div>
+              <p>{label}</p>
+              <strong>{view.metrics[i]}</strong>
             </div>
-          ),
-        )}
+          </div>
+        ))}
       </div>
       <div className="dashboard-grid">
         <Panel title="Operational tasks" icon="info">
@@ -37,6 +43,9 @@ export function AdminOverview({ view }: { view: View }) {
             </Link>
             <Link className="button primary" to="/offerings">
               Course administration
+            </Link>
+            <Link className="button secondary" to="/courses">
+              Course catalog
             </Link>
           </div>
         </Panel>

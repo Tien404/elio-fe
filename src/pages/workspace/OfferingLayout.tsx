@@ -3,7 +3,7 @@ import { useCallback } from 'react'
 import { Link, NavLink, Outlet, useParams } from 'react-router'
 import { Status, Icon } from '@/components/ui'
 import { LoadState } from '@/components/workspace/WorkspaceUI'
-import { services, apiMode } from '@/services'
+import { services } from '@/services'
 import { useResource } from '@/services/use-resource'
 import { useAuth } from '@/services/auth-context'
 
@@ -39,22 +39,22 @@ export function OfferingLayout() {
           </NavLink>
         )}
         {view.permissions.academic && (
-          <Link to={`/assignments?offeringId=${id}`}>
+          <NavLink to={`/offerings/${id}/assignments`}>
             <Icon name="assignments" size={18} inheritColor />
             Assignments
-          </Link>
+          </NavLink>
         )}
-        {!apiMode && view.permissions.academic && (
-          <Link to={`/results?offeringId=${id}`}>
+        {view.permissions.academic && (
+          <NavLink to={`/offerings/${id}/results`}>
             <Icon name="results" size={18} inheritColor />
             Results
-          </Link>
+          </NavLink>
         )}
-        {!apiMode && view.permissions.academic && (
-          <Link to={`/quizzes?offeringId=${id}`}>
+        {view.permissions.academic && (
+          <NavLink to={`/offerings/${id}/quizzes`}>
             <Icon name="quizzes" size={18} inheritColor />
             Quizzes
-          </Link>
+          </NavLink>
         )}
         <NavLink to={`/offerings/${id}/members`}>
           <Icon name="people" size={18} inheritColor />
@@ -64,7 +64,7 @@ export function OfferingLayout() {
           <Icon name="people-small" size={18} inheritColor />
           Teaching team
         </NavLink>
-        {!apiMode && view.permissions.academic && (
+        {view.permissions.academic && (
           <NavLink to={`/offerings/${id}/announcements`}>
             <Icon name="messages" size={18} inheritColor />
             Announcements

@@ -1,14 +1,28 @@
+import { vietnamDayBoundary } from '@/services/assessment-time'
 import { useCallback, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { Button, DataTable, Field, Panel, Status } from '@/components/ui'
 import { LoadState, Pager, Select } from '@/components/workspace/WorkspaceUI'
 import { AccountDialog, type AccountOperation } from '@/components/personal/AccountDialog'
 import { WorkspaceAccessContext } from '@/services/workspace-access-context'
-import { services } from '@/services'
+import { apiMode, services } from '@/services'
 import { useResource } from '@/services/use-resource'
 import { useAuth } from '@/services/auth-context'
 import { formatInstant } from '@/services/presentation'
 export function Admin() {
+  const { identity } = useAuth()
+  if (identity!.me.account.role !== 'ADMIN')
+    return (
+      <div className="course-workspace">
+        <h1>Access denied</h1>
+        <Status error>Administrator operational access is required.</Status>
+        <Link to="/dashboard">Go to dashboard</Link>
+      </div>
+    )
+  return <Administration />
+}
+
+function Administration() {
   const { identity } = useAuth(),
     [params, setParams] = useSearchParams(),
     auditOnly = params.get('tab') === 'audit',
@@ -17,6 +31,12 @@ export function Admin() {
     role = params.get('role') ?? 'ALL',
     page = Number(params.get('page')) || 1,
     auditSearch = params.get('auditSearch') ?? '',
+    auditAction = params.get('auditAction') ?? '',
+    auditActor = params.get('auditActor') ?? '',
+    auditOffering = params.get('auditOffering') ?? '',
+    auditFrom = params.get('auditFrom') ?? '',
+    auditTo = params.get('auditTo') ?? '',
+    auditTarget = params.get('auditTarget') ?? '',
     auditPage = Number(params.get('auditPage')) || 1,
     [dialog, setDialog] = useState<{
       kind: AccountOperation
@@ -28,25 +48,39 @@ export function Admin() {
     ),
     r = useResource(load, `admin:${search}:${role}:${status}:${page}`, { retainOnError: true }),
     auditLoad = useCallback(
-      () => services.admin.audit({ search: auditSearch, page: auditPage }),
-      [auditSearch, auditPage],
+      () =>
+        services.admin.audit({
+          search: auditSearch,
+          action: auditAction,
+          page: auditPage,
+          actorId: Number(auditActor) || undefined,
+          offeringId: Number(auditOffering) || undefined,
+          fromAt: auditFrom ? (vietnamDayBoundary(auditFrom) ?? undefined) : undefined,
+          toAt: auditTo ? (vietnamDayBoundary(auditTo, true) ?? undefined) : undefined,
+          targetType: auditTarget || undefined,
+        }),
+      [
+        auditSearch,
+        auditAction,
+        auditPage,
+        auditActor,
+        auditOffering,
+        auditFrom,
+        auditTo,
+        auditTarget,
+      ],
     ),
-    audit = useResource(auditLoad, `admin-audit:${auditSearch}:${auditPage}`)
+    audit = useResource(
+      auditLoad,
+      `admin-audit:${auditSearch}:${auditAction}:${auditPage}:${auditActor}:${auditOffering}:${auditFrom}:${auditTo}:${auditTarget}`,
+    )
   function filter(k: string, v: string) {
     setParams((p) => {
       p.set(k, v)
-      p.delete(k === 'auditSearch' ? 'auditPage' : 'page')
+      p.delete(k.startsWith('audit') ? 'auditPage' : 'page')
       return p
     })
   }
-  if (identity!.me.account.role !== 'ADMIN')
-    return (
-      <div className="course-workspace">
-        <h1>Access denied</h1>
-        <Status error>Administrator operational access is required.</Status>
-        <Link to="/dashboard">Go to dashboard</Link>
-      </div>
-    )
   return (
     <WorkspaceAccessContext.Provider
       value={r.error ? { error: r.error, retry: r.reload } : undefined}
@@ -70,6 +104,7 @@ export function Admin() {
               <div className="filters">
                 <Field
                   label="Search accounts"
+                  maxLength={apiMode ? 200 : undefined}
                   value={search}
                   onChange={(e) => filter('search', e.target.value)}
                 />
@@ -121,17 +156,19 @@ export function Admin() {
                             >
                               Temporary password reset
                             </Button>
-                            <Button
-                              tone="secondary"
-                              onClick={() =>
-                                setDialog({
-                                  kind: a.account.status === 'LOCKED' ? 'unlock' : 'lock',
-                                  account: a,
-                                })
-                              }
-                            >
-                              {a.account.status === 'LOCKED' ? 'Unlock' : 'Lock'}
-                            </Button>
+                            {(!apiMode || a.account.id !== identity!.me.account.id) && (
+                              <Button
+                                tone="secondary"
+                                onClick={() =>
+                                  setDialog({
+                                    kind: a.account.status === 'LOCKED' ? 'unlock' : 'lock',
+                                    account: a,
+                                  })
+                                }
+                              >
+                                {a.account.status === 'LOCKED' ? 'Unlock' : 'Lock'}
+                              </Button>
+                            )}
                             {a.account.role === 'INSTRUCTOR' && (
                               <Button onClick={() => setDialog({ kind: 'capability', account: a })}>
                                 Course-creation permission
@@ -160,18 +197,62 @@ export function Admin() {
                 Course metadata and staffing operations are available in Course sections. Academic
                 content is governed by teaching membership.
               </p>
-              <Link className="button secondary" to="/offerings">
-                Search course sections
-              </Link>
+              <div className="actions">
+                <Link className="button secondary" to="/offerings">
+                  Search course sections
+                </Link>
+                <Link className="button secondary" to="/courses">
+                  Course catalog
+                </Link>
+                <Link className="button secondary" to="/admin?tab=audit">
+                  Audit log
+                </Link>
+              </div>
             </Panel>
           </>
         )}
         <Panel title="Audit log" icon="info">
           <Field
-            label="Search audit log"
-            value={auditSearch}
-            onChange={(e) => filter('auditSearch', e.target.value)}
+            label={apiMode ? 'Filter by action code' : 'Search audit log'}
+            maxLength={apiMode ? 100 : undefined}
+            placeholder={apiMode ? 'e.g. LEAD_TRANSFERRED' : undefined}
+            value={apiMode ? auditAction : auditSearch}
+            onChange={(e) => filter(apiMode ? 'auditAction' : 'auditSearch', e.target.value)}
           />
+          <div className="form-grid">
+            <Field
+              label="Actor ID"
+              type="number"
+              min={1}
+              value={auditActor}
+              onChange={(e) => filter('auditActor', e.target.value)}
+            />
+            <Field
+              label="Course section ID"
+              type="number"
+              min={1}
+              value={auditOffering}
+              onChange={(e) => filter('auditOffering', e.target.value)}
+            />
+            <Field
+              label="Object type"
+              maxLength={80}
+              value={auditTarget}
+              onChange={(e) => filter('auditTarget', e.target.value.toUpperCase())}
+            />
+            <Field
+              label="From date (Vietnam)"
+              type="date"
+              value={auditFrom}
+              onChange={(e) => filter('auditFrom', e.target.value)}
+            />
+            <Field
+              label="Through date (Vietnam)"
+              type="date"
+              value={auditTo}
+              onChange={(e) => filter('auditTo', e.target.value)}
+            />
+          </div>
           <LoadState {...audit} retry={audit.reload} />
           {audit.data && !audit.error && (
             <>
@@ -183,7 +264,7 @@ export function Admin() {
                   { label: 'Action', render: (a) => a.action },
                   { label: 'Timestamp', render: (a) => formatInstant(a.occurredAt) },
                   { label: 'Object', render: (a) => `${a.targetKind} · ${a.targetId}` },
-                  { label: 'Reason', render: (a) => a.reason },
+                  { label: 'Reason', render: (a) => a.reason ?? '—' },
                 ]}
               />
               {!audit.data.totalItems && <Status>No operational audit entries match.</Status>}
@@ -199,7 +280,9 @@ export function Admin() {
             </>
           )}
         </Panel>
-        {dialog && <AccountDialog {...dialog} close={() => setDialog(undefined)} />}
+        {dialog && (
+          <AccountDialog {...dialog} close={() => setDialog(undefined)} reload={r.reload} />
+        )}
       </div>
     </WorkspaceAccessContext.Provider>
   )

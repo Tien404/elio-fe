@@ -96,7 +96,7 @@ export const mockAdmin = {
           me.account.id,
           'Account provisioned; temporary credential delivered separately.',
         )
-        return { account: me, temporaryPassword }
+        return { accountId: me.account.id, temporaryPassword }
       })
     }),
   update: (
@@ -162,7 +162,7 @@ export const mockAdmin = {
         a.version++
         s.passwordVerifiers[id] = hash
         if (s.session?.accountId === id) s.session = null
-        return { account: a, temporaryPassword }
+        return { accountId: a.account.id, temporaryPassword }
       })
     }),
   audit: (q: AdminQuery = {}) =>
@@ -173,7 +173,7 @@ export const mockAdmin = {
         ...s.personal.audits.map((a) => ({
           ...a,
           key: `account-${a.id}`,
-          targetKind: 'ACCOUNT',
+          targetKind: a.targetKind ?? 'ACCOUNT',
           offeringId: null as number | null,
         })),
         ...s.workspace.audits
@@ -195,7 +195,12 @@ export const mockAdmin = {
           .filter(
             (a) =>
               matches(q.search, a.action, a.actorId, a.targetId ?? '', a.reason) &&
-              (!q.action || a.action === q.action),
+              (!q.action || a.action === q.action) &&
+              (!q.actorId || a.actorId === q.actorId) &&
+              (!q.offeringId || a.offeringId === q.offeringId) &&
+              (!q.targetType || a.targetKind === q.targetType) &&
+              (!q.fromAt || a.occurredAt >= q.fromAt) &&
+              (!q.toAt || a.occurredAt <= q.toAt),
           )
           .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt)),
         q,
@@ -203,4 +208,3 @@ export const mockAdmin = {
       )
     }),
 }
-export type AdminService = typeof mockAdmin

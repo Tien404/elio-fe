@@ -3,6 +3,7 @@ import { SelectControl } from '@/components/SelectControl'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import { DataTable, Icon, Panel, Status } from '@/components/ui'
 import { ActionButton, Badge, LoadState, Pager } from '@/components/workspace/WorkspaceUI'
+import { OfferingCard } from '@/components/workspace/OfferingCard'
 import { OfferingEditor } from '@/components/workspace/OfferingEditor'
 import { OfferingTransition } from '@/components/workspace/OfferingTransition'
 import { JoinDialog } from '@/components/workspace/JoinDialog'
@@ -217,47 +218,30 @@ export function Offerings({
             ) : display === 'grid' ? (
               <div className="course-cards">
                 {result.data.items.map((item) => (
-                  <article className="course-card offering-card" key={item.offering.id}>
-                    <Link className="offering-card-main" to={`/offerings/${item.offering.id}`}>
-                      <div className="course-cover">
-                        <img src="/assets/course-cover.png" alt="" />
-                        <div>
-                          {[
-                            item.offering.semester,
-                            item.offering.courseCode,
-                            item.offering.sectionCode,
-                          ].map((value, i) => (
-                            <span key={`${i}-${value}`}>{value}</span>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="offering-card-title">
-                        <strong>{item.offering.title}</strong>
-                        <Badge value={item.offering.status} />
-                      </div>
-                      <small>
-                        {item.lead?.displayName ?? 'Lead unavailable'}
-                        {item.lead?.status === 'LOCKED' && <Badge value="LOCKED" />}
-                      </small>
-                      {me.account.role === 'STUDENT' && (
-                        <>
-                          <span className="course-completion">
-                            {item.totalMaterials
-                              ? `${item.completedMaterials} / ${item.totalMaterials} published materials completed`
-                              : 'No published materials'}
-                          </span>
-                          <progress
-                            aria-label={`Material completion for ${item.offering.title}`}
-                            max={item.totalMaterials || 1}
-                            value={item.completedMaterials}
-                          />
-                        </>
-                      )}
-                    </Link>
-                    {me.account.role !== 'STUDENT' && (
-                      <div className="offering-card-actions">{renderActions(item)}</div>
+                  <OfferingCard
+                    key={item.offering.id}
+                    offering={item.offering}
+                    actions={me.account.role !== 'STUDENT' && renderActions(item)}
+                  >
+                    <small>
+                      {item.lead?.displayName ?? 'Lead unavailable'}
+                      {item.lead?.status === 'LOCKED' && <Badge value="LOCKED" />}
+                    </small>
+                    {me.account.role === 'STUDENT' && (
+                      <>
+                        <span className="course-completion">
+                          {item.totalMaterials
+                            ? `${item.completedMaterials} / ${item.totalMaterials} published materials completed`
+                            : 'No published materials'}
+                        </span>
+                        <progress
+                          aria-label={`Material completion for ${item.offering.title}`}
+                          max={item.totalMaterials || 1}
+                          value={item.completedMaterials}
+                        />
+                      </>
                     )}
-                  </article>
+                  </OfferingCard>
                 ))}
               </div>
             ) : (
@@ -331,6 +315,7 @@ export function Offerings({
           item={command.item}
           command={command.action}
           close={() => setCommand(undefined)}
+          reload={result.reload}
         />
       )}
       {join && (

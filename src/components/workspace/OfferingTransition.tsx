@@ -3,16 +3,19 @@ import { Dialog } from '@/components/ui'
 import { ActionButton, Feedback, TextArea } from '@/components/workspace/WorkspaceUI'
 import type { OfferingView } from '@/services/course-contracts'
 import { services } from '@/services'
+import { mustReview } from '@/services/errors'
 import { useAction } from '@/services/use-action'
 
 export function OfferingTransition({
   item,
   command,
   close,
+  reload,
 }: {
   item: OfferingView
   command: 'publish' | 'archive' | 'restore'
   close(): void
+  reload(): void
 }) {
   const [expected] = useState(item.offering.version)
   const [reason, setReason] = useState(''),
@@ -33,7 +36,13 @@ export function OfferingTransition({
       close={close}
     >
       <form onSubmit={submit}>
-        <Feedback action={action} />
+        <Feedback
+          action={action}
+          review={() => {
+            reload()
+            close()
+          }}
+        />
         <p className="form-description">
           {command === 'publish'
             ? 'The course section becomes open. Students can join using its enabled code.'
@@ -69,17 +78,11 @@ export function OfferingTransition({
                   : 'publish-small'
             }
             type="submit"
-            disabled={action.pending}
+            disabled={action.pending || mustReview(action.error)}
           >
             {action.pending ? 'Please wait…' : `Confirm ${command}`}
           </ActionButton>
         </div>
-        {action.error && (
-          <p className="form-description">
-            Your reason is kept. For a stale version, cancel and review the latest course section
-            before opening a new confirmation.
-          </p>
-        )}
       </form>
     </Dialog>
   )

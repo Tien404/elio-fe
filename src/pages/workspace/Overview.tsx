@@ -1,6 +1,6 @@
 import { useAuth } from '@/services/auth-context'
 import { useCallback, useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import { Button, DataTable, Panel, Status } from '@/components/ui'
 import { Badge, LoadState, Pager } from '@/components/workspace/WorkspaceUI'
 import { AnnouncementsPanel } from '@/components/workspace/AnnouncementsPanel'
@@ -8,11 +8,11 @@ import { OfferingEditor } from '@/components/workspace/OfferingEditor'
 import { OfferingTransition } from '@/components/workspace/OfferingTransition'
 import { useOffering } from '@/pages/workspace/offering-context'
 import type { OfferingView } from '@/services/course-contracts'
-import { services, apiMode } from '@/services'
+import { services } from '@/services'
 import { useResource } from '@/services/use-resource'
 
 export function Overview() {
-  const { view, refreshing } = useOffering(),
+  const { view, refreshing, reload } = useOffering(),
     o = view.offering,
     [edit, setEdit] = useState(false),
     [command, setCommand] = useState<'publish' | 'archive' | 'restore'>()
@@ -30,6 +30,12 @@ export function Overview() {
                 {view.learningInformation || 'Learning information has not been added.'}
               </p>
             )}
+            {view.permissions.repairLead && (
+              <Status error>
+                Restore requires an active lead instructor.
+                <Link to={`/offerings/${o.id}/team`}> Review teaching team</Link>
+              </Status>
+            )}
             <div className="actions">
               {view.permissions.edit && (
                 <Button tone="secondary" disabled={refreshing} onClick={() => setEdit(true)}>
@@ -39,7 +45,12 @@ export function Overview() {
               {(['publish', 'archive', 'restore'] as const).map(
                 (action) =>
                   view.permissions[action] && (
-                    <Button key={action} tone="secondary" onClick={() => setCommand(action)}>
+                    <Button
+                      key={action}
+                      tone="secondary"
+                      disabled={refreshing}
+                      onClick={() => setCommand(action)}
+                    >
                       {action[0].toUpperCase() + action.slice(1)} section
                     </Button>
                   ),
@@ -50,9 +61,11 @@ export function Overview() {
             <>
               <LearningSummary view={view} />
               <AssignmentSummary id={o.id} />
-              {!apiMode && (
-                <AnnouncementsPanel offeringId={o.id} writable={view.permissions.teach} />
-              )}
+              <AnnouncementsPanel
+                offeringId={o.id}
+                writable={view.permissions.teach}
+                canPublish={view.permissions.teach && o.status === 'OPEN'}
+              />
             </>
           ) : (
             <Panel title="Operational metadata only" icon="info">
@@ -71,7 +84,12 @@ export function Overview() {
       </div>
       {edit && <OfferingEditor saved={view} close={() => setEdit(false)} />}
       {command && (
-        <OfferingTransition item={view} command={command} close={() => setCommand(undefined)} />
+        <OfferingTransition
+          item={view}
+          command={command}
+          close={() => setCommand(undefined)}
+          reload={reload}
+        />
       )}
     </>
   )
@@ -160,11 +178,29 @@ function TeamSummary({ id }: { id: number }) {
 }
 export function Announcements() {
   const { view } = useOffering()
+  const [params, setParams] = useSearchParams()
+  const linkedId = Number(params.get('announcementId')) || undefined
   return (
     <>
       <h1>Class announcements</h1>
       {view.permissions.academic ? (
-        <AnnouncementsPanel offeringId={view.offering.id} writable={view.permissions.teach} />
+        <AnnouncementsPanel
+          key={view.offering.id}
+          offeringId={view.offering.id}
+          writable={view.permissions.teach}
+          canPublish={view.permissions.teach && view.offering.status === 'OPEN'}
+          linkedId={linkedId}
+          clearLink={() => {
+            if (linkedId)
+              setParams(
+                (current) => {
+                  current.delete('announcementId')
+                  return current
+                },
+                { replace: true },
+              )
+          }}
+        />
       ) : (
         <Status error>Current academic membership is required.</Status>
       )}
@@ -190,7 +226,9 @@ function AssignmentSummary({ id }: { id: number }) {
               {
                 label: 'Assignment',
                 render: (v) => (
-                  <Link to={`/assignments/${v.assignment.id}`}>{v.assignment.title}</Link>
+                  <Link to={`/offerings/${id}/assignments/${v.assignment.id}`}>
+                    {v.assignment.title}
+                  </Link>
                 ),
               },
               { label: 'Mode', render: (v) => v.assignment.mode.toLowerCase() },
@@ -210,7 +248,7 @@ function AssignmentSummary({ id }: { id: number }) {
         ) : (
           <Status>No published assignments.</Status>
         ))}
-      <Link className="button secondary" to={`/assignments?offeringId=${id}`}>
+      <Link className="button secondary" to={`/offerings/${id}/assignments`}>
         View all assignments
       </Link>
     </Panel>

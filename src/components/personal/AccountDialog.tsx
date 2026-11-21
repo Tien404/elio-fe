@@ -3,16 +3,20 @@ import { Link } from 'react-router'
 import { Button, Dialog, Field, Status } from '@/components/ui'
 import { Feedback, Select, TextArea } from '@/components/workspace/WorkspaceUI'
 import { services } from '@/services'
-import type { MeView, Role } from '@/services/contracts'
+import type { AdminAccount, CredentialDelivery } from '@/services/admin-contracts'
+import { mustReview } from '@/services/errors'
+import type { Role } from '@/services/contracts'
 import { useAction } from '@/services/use-action'
 export type AccountOperation = 'create' | 'reset' | 'lock' | 'unlock' | 'capability'
 export function AccountDialog({
   kind,
   account,
   close,
+  reload,
 }: {
   kind: AccountOperation
-  account?: MeView & { leadResponsibilities: { id: number; title: string }[] }
+  account?: AdminAccount
+  reload(): void
   close(): void
 }) {
   const [email, setEmail] = useState(''),
@@ -20,7 +24,7 @@ export function AccountDialog({
     [role, setRole] = useState<Role>('STUDENT'),
     [capability, setCapability] = useState(account?.canCreateCourse ?? false),
     [reason, setReason] = useState(''),
-    [delivery, setDelivery] = useState<{ email: string; password: string } | null>(null),
+    [delivery, setDelivery] = useState<CredentialDelivery | null>(null),
     action = useAction(),
     labels = {
       create: 'Issue account',
@@ -37,12 +41,12 @@ export function AccountDialog({
         role,
         canCreateCourse: role === 'INSTRUCTOR' && capability,
       })
-      setDelivery({ email: r.account.email, password: r.temporaryPassword })
+      setDelivery(r)
       return
     }
     if (kind === 'reset') {
       const r = await services.admin.resetPassword(account!.account.id, reason, account!.version)
-      setDelivery({ email: r.account.email, password: r.temporaryPassword })
+      setDelivery(r)
       return
     }
     await services.admin.update(account!.account.id, {
@@ -56,20 +60,31 @@ export function AccountDialog({
   }
   return (
     <Dialog title={labels[kind]} close={close} icon="people-small">
-      <Feedback action={action} review={close} />
+      <Feedback
+        action={action}
+        review={() => {
+          reload()
+          close()
+        }}
+      />
       {delivery ? (
         <>
-          <Status>
-            Demo credential delivery · shown once. Closing this dialog discards the plaintext
-            credential.
-          </Status>
-          <p>{delivery.email}</p>
-          <Field
-            label="Temporary demo password"
-            value={delivery.password}
-            readOnly
-            autoComplete="off"
-          />
+          {delivery.temporaryPassword ? (
+            <>
+              <Status>Demo credential shown once.</Status>
+              <Field
+                label="Temporary demo password"
+                value={delivery.temporaryPassword}
+                readOnly
+                autoComplete="off"
+              />
+            </>
+          ) : (
+            <Status>
+              Temporary password sent to the operator outbox for account {delivery.accountId}.
+            </Status>
+          )}
+          <p>{account?.email ?? email.trim().toLowerCase()}</p>
           <p>A password change is required at the next sign-in.</p>
           <Button onClick={close}>Done</Button>
         </>
@@ -137,7 +152,7 @@ export function AccountDialog({
                   <p>
                     The account loses sign-in and participation access. Historical records remain.
                   </p>
-                  {account!.leadResponsibilities.length > 0 && (
+                  {!!account!.leadResponsibilities?.length && (
                     <Status error>
                       Transfer these Draft/Open lead responsibilities first:
                       {account!.leadResponsibilities.map((o) => (
@@ -171,7 +186,7 @@ export function AccountDialog({
             <Button tone="secondary" disabled={action.pending} onClick={close}>
               Cancel
             </Button>
-            <Button type="submit" disabled={action.pending}>
+            <Button type="submit" disabled={action.pending || mustReview(action.error)}>
               {action.pending
                 ? 'Saving…'
                 : kind === 'create'

@@ -1,10 +1,21 @@
-import { useState, type FormEvent } from 'react'
+import { apiMode } from '@/services'
+import { http } from '@/api/http'
+import { RegistrationDialog } from '@/components/RegistrationDialog'
+import { useState, useEffect, type FormEvent } from 'react'
 import { Navigate, useLocation } from 'react-router'
 import { useAuth } from '@/services/auth-context'
 import { errorMessage } from '@/services/errors'
 import { Button, Dialog, Field, Icon, Status } from '@/components/ui'
 
 export function Login() {
+  const [registration, setRegistration] = useState(false),
+    [registrationEnabled, setRegistrationEnabled] = useState(false)
+  useEffect(() => {
+    if (apiMode)
+      void http<{ selfRegistrationEnabled: boolean }>('/auth/options')
+        .then((o) => setRegistrationEnabled(o.selfRegistrationEnabled))
+        .catch(() => setRegistrationEnabled(false))
+  }, [])
   const auth = useAuth()
   const location = useLocation()
   const [email, setEmail] = useState('')
@@ -50,7 +61,7 @@ export function Login() {
             <br />
             your next chapter.
           </h1>
-          <p>Your courses, activities and progress, together in one calm place. Welcome to ELIO.</p>
+          <p>Your courses, activities and progress. Welcome to ELIO.</p>
         </div>
         <small>ELIO · Enhanced Learning Integration &amp; Organization Platform</small>
       </section>
@@ -105,15 +116,21 @@ export function Login() {
               aria-pressed={visible}
               onClick={() => setVisible(!visible)}
             >
-              <Icon name="eye" />
+              <Icon name={visible ? 'eye-off' : 'eye'} />
             </button>
           </div>
           <Button type="submit" disabled={pending || auth.loading}>
             {pending || auth.loading ? 'Please wait…' : 'Sign in'}
           </Button>
         </form>
+        {registrationEnabled && (
+          <Button tone="secondary" onClick={() => setRegistration(true)}>
+            Create student account
+          </Button>
+        )}
         <small>© 2026 ELIO · Privacy policy · Terms of use</small>
       </section>
+      {registration && <RegistrationDialog close={() => setRegistration(false)} />}
       {help && (
         <Dialog title="Account assistance" close={() => setHelp(false)}>
           <p>

@@ -5,12 +5,12 @@ import { ActionButton, Badge, LoadState, Pager } from '@/components/workspace/Wo
 import { TeamDialog } from '@/components/workspace/TeamDialog'
 import { useOffering } from '@/pages/workspace/offering-context'
 import type { Membership } from '@/services/contracts'
-import { services, apiMode } from '@/services'
+import { services } from '@/services'
 import { useResource } from '@/services/use-resource'
 import { useAuth } from '@/services/auth-context'
 
 export function Team() {
-  const { view, refreshing } = useOffering(),
+  const { view, refreshing, reload } = useOffering(),
     { identity } = useAuth(),
     id = view.offering.id,
     [page, setPage] = useState(1),
@@ -109,44 +109,36 @@ export function Team() {
               leadership first.
             </Status>
           )}
-          {manage ? (
-            <div className="actions">
+          <div className="actions">
+            <ActionButton
+              tone="secondary"
+              icon="user-add"
+              disabled={refreshing}
+              onClick={() => setDialog({ mode: 'add' })}
+            >
+              Add instructor
+            </ActionButton>
+            {!view.permissions.repairLead && (
               <ActionButton
-                tone="secondary"
-                icon="user-add"
+                danger
+                icon="trash-white"
                 disabled={refreshing}
-                onClick={() => setDialog({ mode: 'add' })}
+                onClick={() => setDialog({ mode: 'remove' })}
               >
-                Add instructor
+                Remove co-instructor
               </ActionButton>
-              {!view.permissions.repairLead && (
-                <ActionButton
-                  danger
-                  icon="trash-white"
-                  disabled={refreshing}
-                  onClick={() => setDialog({ mode: 'remove' })}
-                >
-                  Remove co-instructor
-                </ActionButton>
-              )}
-              <ActionButton
-                icon="transfer-white"
-                disabled={refreshing}
-                onClick={() => setDialog({ mode: 'transfer' })}
-              >
-                Transfer lead instructor
-              </ActionButton>
-            </div>
-          ) : (
-            <p>
-              {view.offering.status === 'ARCHIVED'
-                ? 'Archived teams are read-only when their historical lead is active.'
-                : 'You have read-only access to team management.'}
-            </p>
-          )}
+            )}
+            <ActionButton
+              icon="transfer-white"
+              disabled={refreshing}
+              onClick={() => setDialog({ mode: 'transfer' })}
+            >
+              Transfer lead instructor
+            </ActionButton>
+          </div>
         </Panel>
       )}
-      {!apiMode && (identity!.me.account.role === 'ADMIN' || view.teachingRole === 'LEAD') && (
+      {(identity!.me.account.role === 'ADMIN' || view.teachingRole === 'LEAD') && (
         <AuditPanel id={id} />
       )}
       {dialog && (
@@ -155,6 +147,11 @@ export function Team() {
           mode={dialog.mode}
           initial={dialog.member}
           close={() => setDialog(undefined)}
+          review={() => {
+            reload()
+            result.reload()
+            setDialog(undefined)
+          }}
         />
       )}
     </>
@@ -172,15 +169,15 @@ function AuditPanel({ id }: { id: number }) {
           {result.data.items.length ? (
             <DataTable
               rows={result.data.items}
-              rowKey={(a) => a.entry.id}
+              rowKey={(a) => a.key}
               columns={[
-                { label: 'Time', render: (a) => formatInstant(a.entry.occurredAt) },
-                { label: 'Actor', render: (a) => a.actor.displayName },
+                { label: 'Time', render: (a) => formatInstant(a.occurredAt) },
+                { label: 'Actor', render: (a) => a.actorName ?? `Account ${a.actorId}` },
                 {
                   label: 'Action',
-                  render: (a) => a.entry.action.replaceAll('_', ' ').toLowerCase(),
+                  render: (a) => a.action.replaceAll('_', ' ').toLowerCase(),
                 },
-                { label: 'Reason', render: (a) => a.reason },
+                { label: 'Reason', render: (a) => a.reason ?? '—' },
               ]}
             />
           ) : (

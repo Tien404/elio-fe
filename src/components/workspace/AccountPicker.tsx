@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useId, useState } from 'react'
 import { Field } from '@/components/ui'
 import { LoadState, Pager, Select } from '@/components/workspace/WorkspaceUI'
 import type { AccountSummary } from '@/services/contracts'
@@ -10,12 +10,15 @@ export function AccountPicker({
   role,
   selected,
   change,
+  error,
 }: {
   offeringId: number
   role: 'STUDENT' | 'INSTRUCTOR'
   selected: AccountSummary | null
+  error?: string
   change(value: AccountSummary | null): void
 }) {
+  const errorId = useId()
   const [search, setSearch] = useState(''),
     [page, setPage] = useState(1)
   const load = useCallback(
@@ -27,6 +30,7 @@ export function AccountPicker({
     <>
       <Field
         label="Search existing accounts"
+        maxLength={role === 'INSTRUCTOR' ? 100 : undefined}
         value={search}
         onChange={(e) => {
           setSearch(e.target.value)
@@ -36,6 +40,8 @@ export function AccountPicker({
       <LoadState {...result} retry={result.reload} />
       <Select
         label="Existing account"
+        aria-invalid={!!error}
+        aria-describedby={error ? errorId : undefined}
         required
         value={selected?.id ?? ''}
         onChange={(e) =>
@@ -54,6 +60,11 @@ export function AccountPicker({
           </option>
         ))}
       </Select>
+      {error && (
+        <p className="field-error" id={errorId} role="alert">
+          {error}
+        </p>
+      )}
       {result.data && (
         <>
           <Pager value={result.data} change={setPage} />

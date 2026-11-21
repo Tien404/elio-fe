@@ -1,8 +1,7 @@
 import { realAttemptGuards } from '@/mocks/quiz-runtime'
 import type { CourseService, OfferingView } from '@/services/course-contracts'
 import { ServiceError } from '@/services/errors'
-import { current, verifier } from '@/mocks/services'
-import { DEMO_PASSWORD } from '@/mocks/seed'
+import { current } from '@/mocks/services'
 import { commit, getStore, now } from '@/mocks/store'
 import { request } from '@/mocks/scenarios'
 import {
@@ -74,8 +73,8 @@ function newCode() {
 export const mockCourses: CourseService = {
   catalog: (query = {}) =>
     request((preset) => {
-      if (current().me.account.role !== 'INSTRUCTOR')
-        throw new ServiceError(403, 'Only instructors can browse the catalog.')
+      if (current().me.account.role === 'STUDENT')
+        throw new ServiceError(403, 'Only instructors and administrators can browse the catalog.')
       return page(
         getStore()
           .workspace.catalog.filter((c) => matches(query.search, c.courseCode, c.courseName))
@@ -84,10 +83,62 @@ export const mockCourses: CourseService = {
         preset === 'empty',
       )
     }),
+  createCatalog: (input) =>
+    request(() =>
+      commit(() => {
+        const actor = current().me.account
+        if (actor.role !== 'ADMIN') throw new ServiceError(403, 'Administrator access is required.')
+        const name = text(input.courseName, 'Course name', 200)
+        const faculty = input.facultyCode.toUpperCase()
+        if (
+          !/^[A-Z]{2,4}$/.test(faculty) ||
+          !Number.isInteger(input.yearLevel) ||
+          input.yearLevel < 1 ||
+          input.yearLevel > 9 ||
+          input.credits <= 0 ||
+          input.credits > 99.9 ||
+          !Number.isInteger(input.credits * 10)
+        ) {
+          throw new ServiceError(400, 'Check the faculty code, year level and credits.')
+        }
+        const store = getStore()
+        const catalog = store.workspace.catalog
+        const degree = ['UNDERGRADUATE', 'MASTERS', 'PHD'].indexOf(input.degreeLevel)
+        const stem = `${faculty}${input.yearLevel}${degree}`
+        const number =
+          1 +
+          Math.max(
+            0,
+            ...catalog
+              .filter(
+                (c) => c.courseCode.startsWith(stem) && c.courseCode.length === stem.length + 2,
+              )
+              .map((c) => Number(c.courseCode.slice(stem.length)) || 0),
+          )
+        if (number > 99) throw new ServiceError(409, 'All course codes for this prefix are in use.')
+        const item = {
+          id: nextId(catalog),
+          courseCode: `${stem}${String(number).padStart(2, '0')}`,
+          courseName: name,
+          credits: input.credits,
+        }
+        catalog.push(item)
+        store.personal.audits.push({
+          id: nextId(store.personal.audits),
+          actorId: actor.id,
+          action: 'COURSE_CREATED',
+          targetKind: 'COURSE',
+          targetId: item.id,
+          reason: '',
+          occurredAt: new Date(now()).toISOString(),
+        })
+        return item
+      }),
+    ),
   catalogDetail: (id) =>
     request(() => {
-      if (current().me.account.role !== 'INSTRUCTOR')
-        throw new ServiceError(403, 'Only instructors can browse the catalog.')
+      if (current().me.account.role === 'STUDENT')
+        throw new ServiceError(403, 'Only instructors and administrators can browse the catalog.')
       const item = getStore().workspace.catalog.find((c) => c.id === id)
       if (!item) throw new ServiceError(404, 'Catalog course not found.')
       return item
@@ -419,11 +470,10 @@ export const mockCourses: CourseService = {
         preset === 'empty',
       )
     }),
-  addInstructor: (id, accountId, reason, expectedVersion) =>
+  addInstructor: (id, accountId, reason) =>
     request(() =>
       commit(() => {
         const a = requireTeam(id)
-        version(a.offering.version, expectedVersion)
         const instructor = account(accountId)
         if (instructor.role !== 'INSTRUCTOR' || instructor.status !== 'ACTIVE')
           throw new ServiceError(422, 'Select an active existing instructor account.')
@@ -454,7 +504,7 @@ export const mockCourses: CourseService = {
         return view(id)
       }),
     ),
-  removeInstructor: (id, membershipId, reason, expectedVersion) =>
+  removeInstructor: (id, membershipId, reason) =>
     request(() =>
       commit(() => {
         const a = requireTeam(id)
@@ -463,7 +513,6 @@ export const mockCourses: CourseService = {
             403,
             'Archived teams are read-only except for repairing an active lead before restore.',
           )
-        version(a.offering.version, expectedVersion)
         const safeReason = requireReason(reason),
           m = a.store.memberships.find(
             (m) =>
@@ -482,20 +531,13 @@ export const mockCourses: CourseService = {
         return view(id)
       }),
     ),
-  transfer: (id, membershipId, reason, currentPassword, expectedVersion) =>
+  transfer: (id, membershipId, reason) =>
     request(async () => {
-      const actor = current().me.account.id,
-        s = getStore()
-      if (
-        (await verifier(currentPassword)) !==
-        (s.passwordVerifiers[actor] ?? (await verifier(DEMO_PASSWORD)))
-      )
-        throw new ServiceError(422, 'Your current password is incorrect.')
+      const actor = current().me.account.id
       return commit(() => {
         if (current().me.account.id !== actor)
           throw new ServiceError(403, 'The active account changed. Review this transfer again.')
         const a = requireTeam(id)
-        version(a.offering.version, expectedVersion)
         const safeReason = requireReason(reason),
           replacement = a.store.memberships.find(
             (m) =>
@@ -536,7 +578,17 @@ export const mockCourses: CourseService = {
       return page(
         a.store.workspace.audits
           .filter((a) => a.entry.offeringId === id)
-          .sort((a, b) => b.entry.id - a.entry.id),
+          .sort((a, b) => b.entry.id - a.entry.id)
+          .map(({ entry, actor, reason }) => ({
+            key: String(entry.id),
+            actorId: actor.id,
+            actorName: actor.displayName,
+            action: entry.action,
+            targetKind: entry.targetKind,
+            targetId: entry.targetId,
+            occurredAt: entry.occurredAt,
+            reason,
+          })),
         query,
         preset === 'empty',
       )

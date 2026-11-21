@@ -1,6 +1,7 @@
-import { useCallback } from 'react'
+import { CatalogSubjectDialog } from '@/components/workspace/CatalogSubjectDialog'
+import { useCallback, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router'
-import { DataTable, Field, Panel, Status } from '@/components/ui'
+import { Button, DataTable, Field, Panel, Status } from '@/components/ui'
 import { LoadState, Pager } from '@/components/workspace/WorkspaceUI'
 import { services } from '@/services'
 import { useAuth } from '@/services/auth-context'
@@ -9,6 +10,7 @@ import { useResource } from '@/services/use-resource'
 export function Catalog() {
   const { identity } = useAuth(),
     [params, setParams] = useSearchParams()
+  const [creating, setCreating] = useState(false)
   const search = params.get('q') ?? '',
     page = Number(params.get('page') ?? 1)
   const load = useCallback(() => services.courses.catalog({ search, page }), [search, page])
@@ -16,7 +18,15 @@ export function Catalog() {
   return (
     <div className="course-workspace">
       <h1>Course catalog</h1>
-      <Panel title="Catalog subjects" icon="book-small">
+      <Panel
+        title="Catalog subjects"
+        icon="book-small"
+        actions={
+          identity!.me.account.role === 'ADMIN' && (
+            <Button onClick={() => setCreating(true)}>Create catalog subject</Button>
+          )
+        }
+      >
         <div className="filters">
           {' '}
           <Field
@@ -72,6 +82,7 @@ export function Catalog() {
           )}
         </div>
       </Panel>
+      {creating && <CatalogSubjectDialog close={() => setCreating(false)} />}
     </div>
   )
 }

@@ -1,5 +1,5 @@
-import { useCallback, useState, type FormEvent } from 'react'
-import { Dialog, Field } from '@/components/ui'
+import { useCallback, useId, useState, type FormEvent } from 'react'
+import { Dialog } from '@/components/ui'
 import { AccountPicker } from '@/components/workspace/AccountPicker'
 import {
   ActionButton,
@@ -12,6 +12,7 @@ import {
 import type { AccountSummary, Membership } from '@/services/contracts'
 import type { OfferingView } from '@/services/course-contracts'
 import { services } from '@/services'
+import { mustReview, ServiceError } from '@/services/errors'
 import { useAction } from '@/services/use-action'
 import { useResource } from '@/services/use-resource'
 
@@ -20,18 +21,19 @@ export function TeamDialog({
   mode,
   initial,
   close,
+  review,
 }: {
   view: OfferingView
   mode: 'add' | 'remove' | 'transfer'
   initial?: Membership
   close(): void
+  review(): void
 }) {
+  const targetErrorId = useId()
   const id = view.offering.id,
     [selected, setSelected] = useState<AccountSummary | null>(null),
     [target, setTarget] = useState<Membership | null>(initial ?? null),
     [reason, setReason] = useState(''),
-    [password, setPassword] = useState(''),
-    [expected, setExpected] = useState(view.offering.version),
     [page, setPage] = useState(1),
     action = useAction()
   const load = useCallback(() => services.courses.team(id, { page }), [id, page]),
@@ -43,28 +45,22 @@ export function TeamDialog({
         m.teachingRole === 'CO_INSTRUCTOR' &&
         (mode !== 'transfer' || m.account.status === 'ACTIVE'),
     ) ?? []
-  async function review() {
-    await action.run(
-      () => services.courses.get(id),
-      (latest) => {
-        setExpected(latest.offering.version)
-        setReason('')
-        setPassword('')
-        setTarget(null)
-        setSelected(null)
-        result.reload()
-      },
-    )
-  }
+  const errorCode = action.error instanceof ServiceError ? action.error.fields.code : undefined
+  const targetError =
+    errorCode === 'INSTRUCTOR_NOT_FOUND' || errorCode === 'INELIGIBLE_SUCCESSOR'
+      ? action.error?.message
+      : undefined
+  const permitted =
+    view.permissions.manageTeam || (mode !== 'remove' && view.permissions.repairLead)
   function submit(event: FormEvent) {
     event.preventDefault()
     void action.run(
       () =>
         mode === 'add'
-          ? services.courses.addInstructor(id, selected!.id, reason, expected)
+          ? services.courses.addInstructor(id, selected!.id, reason)
           : mode === 'remove'
-            ? services.courses.removeInstructor(id, target!.id, reason, expected)
-            : services.courses.transfer(id, target!.id, reason, password, expected),
+            ? services.courses.removeInstructor(id, target!.id, reason)
+            : services.courses.transfer(id, target!.id, reason),
       close,
     )
   }
@@ -77,7 +73,7 @@ export function TeamDialog({
   return (
     <Dialog title={title} icon="info" wide close={close}>
       <form onSubmit={submit}>
-        <Feedback action={action} review={() => void review()} />
+        <Feedback action={targetError ? { ...action, error: null } : action} review={review} />
         <p className="form-description">
           {mode === 'transfer'
             ? `Current lead: ${view.lead?.displayName ?? 'Unavailable'}. The new lead gains all lead responsibilities; the previous lead becomes a co-instructor. Exactly one lead remains.`
@@ -92,6 +88,7 @@ export function TeamDialog({
             role="INSTRUCTOR"
             selected={selected}
             change={setSelected}
+            error={targetError}
           />
         ) : (
           <>
@@ -99,6 +96,8 @@ export function TeamDialog({
             <Select
               label={mode === 'transfer' ? 'New lead instructor' : 'Co-instructor'}
               required
+              aria-invalid={!!targetError}
+              aria-describedby={targetError ? targetErrorId : undefined}
               value={target?.id ?? ''}
               onChange={(e) =>
                 setTarget(eligible.find((m) => m.id === Number(e.target.value)) ?? null)
@@ -116,7 +115,15 @@ export function TeamDialog({
                 </option>
               ))}
             </Select>
+            {targetError && (
+              <p className="field-error" id={targetErrorId} role="alert">
+                {targetError}
+              </p>
+            )}
             {result.data && <Pager value={result.data} change={setPage} />}
+            {result.data && !eligible.length && !target && (
+              <p className="form-description">No eligible co-instructors on this page.</p>
+            )}
           </>
         )}
         <TextArea
@@ -126,17 +133,6 @@ export function TeamDialog({
           value={reason}
           onChange={(e) => setReason(e.target.value)}
         />
-        {mode === 'transfer' && (
-          <Field
-            label="Your current password"
-            type="password"
-            autoComplete="current-password"
-            required
-            maxLength={1024}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        )}
         <div className="actions">
           <ActionButton
             icon="cancel-dark"
@@ -156,7 +152,12 @@ export function TeamDialog({
                   : 'publish-small'
             }
             type="submit"
-            disabled={action.pending || (mode === 'add' ? !selected : !target)}
+            disabled={
+              action.pending ||
+              mustReview(action.error) ||
+              !permitted ||
+              (mode === 'add' ? !selected : !target)
+            }
           >
             {action.pending ? 'Please wait…' : mode === 'transfer' ? 'Confirm transfer' : title}
           </ActionButton>

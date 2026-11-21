@@ -63,6 +63,8 @@ export interface Resource {
   kind: 'TEXT' | 'LINK' | 'FILE'
 }
 export interface Assignment {
+  maxGroupSize?: number | null
+  groupFormation?: 'SELF' | 'INSTRUCTOR'
   id: number
   offeringId: number
   title: string
@@ -91,6 +93,7 @@ export interface SubmissionReceipt {
   submittedAt: string
 }
 export interface GradeRevision {
+  specialMark?: 'ABSENT' | 'BANNED' | null
   gradeRecordId: number
   revisionNo: number
   sourceVersionNo: number | null
@@ -111,6 +114,9 @@ export interface GradeRecord {
   version: number
 }
 export interface Quiz {
+  maxAttempts?: number
+  gradingMethod?: 'HIGHEST_SCORE' | 'LATEST_ATTEMPT' | 'AVERAGE'
+  releasePolicy?: 'AFTER_CLOSE' | 'IMMEDIATE'
   id: number
   offeringId: number
   title: string
@@ -125,7 +131,10 @@ export interface Quiz {
 export interface CalendarItem {
   id: string
   offeringId: number
-  kind: 'ASSIGNMENT_DUE' | 'QUIZ_CLOSE'
+  kind: 'ASSIGNMENT_DUE' | 'QUIZ_OPEN' | 'QUIZ_CLOSE'
+  section: string
+  status: string
+  type?: string
   title: string
   at: string
   targetUri: string

@@ -1,3 +1,4 @@
+import type { OperationalAudit } from '@/services/admin-contracts'
 import type {
   AccountSummary,
   FileAsset,
@@ -23,6 +24,14 @@ export interface CatalogCourse {
   courseCode: string
   courseName: string
   credits: number
+}
+export interface CreateCatalogCourseInput {
+  facultyCode: string
+  yearLevel: number
+  degreeLevel: 'UNDERGRADUATE' | 'MASTERS' | 'PHD'
+  courseName: string
+  credits: number
+  description?: string
 }
 export interface OfferingQuery extends PageQuery {
   sort?: 'newest' | 'title-asc' | 'title-desc' | 'semester'
@@ -103,7 +112,7 @@ export interface AnnouncementView extends AnnouncementInput {
   id: number
   offeringId: number
   version: number
-  status: 'DRAFT' | 'PUBLISHED'
+  status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'
   publishedAt: string | null
   hasUnpublishedChanges: boolean
 }
@@ -122,6 +131,7 @@ export interface TeamAudit {
 }
 export interface CourseService {
   catalog(query?: PageQuery): Promise<Page<CatalogCourse>>
+  createCatalog(input: CreateCatalogCourseInput): Promise<CatalogCourse>
   catalogDetail(id: number): Promise<CatalogCourse>
   list(query?: OfferingQuery): Promise<Page<OfferingView>>
   get(id: number): Promise<OfferingView>
@@ -146,26 +156,10 @@ export interface CourseService {
   enroll(id: number, accountId: number): Promise<Membership>
   joinCode(id: number, action: 'rotate' | 'disable', expectedVersion: number): Promise<OfferingView>
   team(id: number, query?: PageQuery): Promise<Page<Membership>>
-  addInstructor(
-    id: number,
-    accountId: number,
-    reason: string,
-    expectedVersion: number,
-  ): Promise<OfferingView>
-  removeInstructor(
-    id: number,
-    membershipId: number,
-    reason: string,
-    expectedVersion: number,
-  ): Promise<OfferingView>
-  transfer(
-    id: number,
-    membershipId: number,
-    reason: string,
-    currentPassword: string,
-    expectedVersion: number,
-  ): Promise<OfferingView>
-  audit(id: number, query?: PageQuery): Promise<Page<TeamAudit>>
+  addInstructor(id: number, accountId: number, reason: string): Promise<OfferingView>
+  removeInstructor(id: number, membershipId: number, reason: string): Promise<OfferingView>
+  transfer(id: number, membershipId: number, reason: string): Promise<OfferingView>
+  audit(id: number, query?: PageQuery): Promise<Page<OperationalAudit>>
 }
 export interface ContentService {
   topics(id: number, query?: PageQuery): Promise<Page<Topic>>
@@ -185,6 +179,8 @@ export interface ContentService {
   completeMaterial(id: number): Promise<MaterialView>
   uncompleteMaterial(id: number): Promise<MaterialView>
   announcements(id: number, query?: PageQuery): Promise<Page<AnnouncementView>>
+  announcement(id: number): Promise<AnnouncementView>
+  publishAnnouncement(id: number, expectedVersion: number): Promise<AnnouncementView>
   saveAnnouncement(
     offeringId: number,
     id: number | null,

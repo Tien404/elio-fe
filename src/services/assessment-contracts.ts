@@ -28,6 +28,8 @@ export interface Submission {
   status: 'NOT_SUBMITTED' | 'SUBMITTED'
 }
 export interface AssignmentInput {
+  maxGroupSize?: number | null
+  groupFormation?: 'SELF' | 'INSTRUCTOR'
   title: string
   instructions: string | null
   mode: Assignment['mode']
@@ -49,7 +51,6 @@ export interface AssignmentView {
   teacher: boolean
   writable: boolean
   canSubmit: boolean
-  canGrade: boolean
   serverNow: string
   offeringLabel: string
   topics: Topic[]
@@ -66,7 +67,6 @@ export interface AssignmentQuery extends PageQuery {
 export interface GroupView {
   group: Group
   members: AccountSummary[]
-  frozenRecipients: AccountSummary[]
 }
 export interface SubmissionView {
   submission: Submission | null
@@ -97,8 +97,25 @@ export interface GradeSubject {
   submission: Submission | null
   grade: GradeRecord | null
 }
+export interface GradeQueue extends Page<GradeSubject> {
+  canGrade: boolean
+  serverNow: string
+  subjectType: 'STUDENT' | 'GROUP'
+}
+export interface PublishedAssignmentResult {
+  assignmentId: number
+  offeringId: number
+  groupId: number | null
+  title: string
+  maxScore: number
+  publishedAt: string
+  revision: GradeRevision
+}
 export interface GradeInput {
+  specialMark?: 'ABSENT' | 'BANNED' | null
   subjectId: number
+  submissionId: number | null
+  gradeRecordId: number | null
   expectedSubmissionVersion: number
   expectedGradeVersion: number
   sourceVersionNo: number | null
@@ -108,6 +125,7 @@ export interface GradeInput {
   reason: string | null
 }
 export interface ResultCell {
+  specialCode?: number | null
   activityId: number
   kind: 'ASSIGNMENT' | 'QUIZ'
   title: string
@@ -118,6 +136,7 @@ export interface ResultCell {
   state: string
   feedback: string | null
   complete: boolean
+  isMissingZero?: boolean
   gradeRecordId: number | null
   groupId: number | null
 }
@@ -154,19 +173,22 @@ export interface AssessmentService {
     input: AssignmentInput,
     expectedVersion?: number,
   ): Promise<AssignmentView>
+  joinGroup(id: number): Promise<void>
+  leaveGroup(id: number): Promise<void>
+  releaseGrades(id: number): Promise<void>
   groups(id: number, query?: PageQuery): Promise<Page<GroupView>>
-  candidates(id: number): Promise<AccountSummary[]>
+  candidates(id: number, groupId?: number): Promise<AccountSummary[]>
   saveGroup(
     id: number,
     groupId: number | null,
     input: Pick<Group, 'name' | 'memberStudentIds'>,
     expectedVersion?: number,
   ): Promise<GroupView>
-  stream(id: number, subjectId?: number): Promise<SubmissionView>
+  stream(id: number, subjectId?: number, submissionId?: number): Promise<SubmissionView>
   prepare(id: number, input: ConfirmInput, requestKey: string): Promise<PreparedSubmission>
   confirm(id: number, prepared: PreparedSubmission): Promise<SubmissionReceipt>
   receipt(id: number, key: string): Promise<SubmissionReceipt | null>
-  queue(id: number, query?: PageQuery): Promise<Page<GradeSubject>>
+  queue(id: number, query?: PageQuery): Promise<GradeQueue>
   saveGrade(id: number, input: GradeInput): Promise<GradeRecord>
   publishGrade(
     id: number,

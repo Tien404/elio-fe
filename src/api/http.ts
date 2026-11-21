@@ -39,17 +39,23 @@ export async function http<T>(path: string, init: RequestInit = {}): Promise<T> 
       identity = null
       window.dispatchEvent(new Event('elio:expired'))
     }
+    if (response.status === 412) window.dispatchEvent(new Event('elio:data'))
     throw new ServiceError(
       response.status,
       response.status === 501
         ? 'This feature is unavailable.'
         : (problem?.detail ?? `Request failed (${response.status}).`),
-      problem?.code ? { code: problem.code } : {},
+      {
+        ...(problem?.code ? { code: problem.code } : {}),
+        ...(problem?.currentVersion !== undefined
+          ? { currentVersion: String(problem.currentVersion) }
+          : {}),
+      },
     )
   }
   if (!['GET', 'HEAD'].includes(method)) window.dispatchEvent(new Event('elio:data'))
   if (response.status === 204) return undefined as T
-  if (init.headers && new Headers(init.headers).get('Accept') === 'application/octet-stream')
+  if (['application/octet-stream', 'text/csv'].includes(headers.get('Accept') ?? ''))
     return response.blob() as Promise<T>
   return response.json() as Promise<T>
 }

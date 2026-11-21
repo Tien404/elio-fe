@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ServiceError } from '@/services/errors'
+import { requiresSessionRefresh, ServiceError } from '@/services/errors'
 import { useAuth } from '@/services/auth-context'
 
 export function useResource<T>(
@@ -7,7 +7,7 @@ export function useResource<T>(
   key: string,
   { retainOnError = false }: { retainOnError?: boolean } = {},
 ) {
-  const { signedOut } = useAuth()
+  const { signedOut, refresh } = useAuth()
   const [revision, setRevision] = useState(0)
   const [result, setResult] = useState<{ key: string; revision: number; data?: T; error?: Error }>()
   useEffect(() => {
@@ -19,6 +19,7 @@ export function useResource<T>(
       .catch((error: unknown) => {
         if (!active) return
         if (error instanceof ServiceError && error.status === 401) signedOut(error.message)
+        if (requiresSessionRefresh(error)) void refresh()
         setResult((previous) => ({
           key,
           revision,
@@ -29,7 +30,7 @@ export function useResource<T>(
     return () => {
       active = false
     }
-  }, [load, key, revision, signedOut, retainOnError])
+  }, [load, key, revision, signedOut, refresh, retainOnError])
   useEffect(() => {
     const update = () => setRevision((n) => n + 1)
     window.addEventListener('elio:data', update)

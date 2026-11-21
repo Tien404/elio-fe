@@ -1,4 +1,11 @@
+import type { CalendarItem } from '@/services/contracts'
 import { services } from '@/services'
+
+export const calendarKindLabel: Record<CalendarItem['kind'], string> = {
+  ASSIGNMENT_DUE: 'Assignment due',
+  QUIZ_OPEN: 'Quiz opens',
+  QUIZ_CLOSE: 'Quiz closes',
+}
 
 export function calendarDate(value: string | Date = new Date()) {
   return new Intl.DateTimeFormat('en-CA', {

@@ -1,5 +1,10 @@
 import { services } from '@/services'
 export function formatActivityReason(reason: string) {
+  if (reason === 'No confirmed submission') return 'Awaiting submission.'
+  if (reason === 'Confirmed submission') return 'Submitted.'
+  if (reason === 'Attempt finalized') return 'Quiz completed.'
+  if (reason === 'Marked complete') return 'Marked as completed.'
+  if (reason === 'Not marked complete') return 'View the material and mark it as completed.'
   return reason
     .replace(
       'No confirmed submission; a missing-zero is incomplete',
@@ -29,6 +34,13 @@ export function formatInstant(value: string) {
     timeZone: 'Asia/Ho_Chi_Minh',
     dateStyle: 'medium',
     timeStyle: 'short',
+  }).format(new Date(value))
+}
+export function formatVietnamTime(value: string) {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    hour: '2-digit',
+    minute: '2-digit',
   }).format(new Date(value))
 }
 export async function downloadFile(id: number, name: string) {

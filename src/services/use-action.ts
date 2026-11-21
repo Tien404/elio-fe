@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { useAuth } from '@/services/auth-context'
-import { ServiceError, errorMessage } from '@/services/errors'
+import { ServiceError, errorMessage, requiresSessionRefresh } from '@/services/errors'
 
 export function useAction() {
-  const { signedOut } = useAuth()
+  const { signedOut, refresh } = useAuth()
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<Error | null>(null)
   const [success, setSuccess] = useState('')
@@ -18,6 +18,7 @@ export function useAction() {
       return true
     } catch (e) {
       if (e instanceof ServiceError && e.status === 401) signedOut(e.message)
+      if (requiresSessionRefresh(e)) void refresh()
       setError(e instanceof Error ? e : new Error(errorMessage(e)))
       return false
     } finally {

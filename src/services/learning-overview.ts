@@ -19,10 +19,22 @@ async function allPages<T>(read: (page: number) => Promise<Page<T>>): Promise<T[
   return items
 }
 
-export async function loadLearningOverview(mode: LearningOverviewMode) {
+export async function loadLearningOverview(
+  mode: LearningOverviewMode,
+  teacher: boolean,
+): Promise<LearningCourseSummary[]> {
   const sections = (
     await allPages((page) => services.courses.list({ page, pageSize: 100 }))
   ).filter((section) => section.permissions.academic)
+  if (mode === 'progress' && !teacher) {
+    const own = await allPages(
+      async (page) => (await services.personal.ownProgress({ page, pageSize: 100 })).rows,
+    )
+    return sections.map((section) => ({
+      section,
+      progress: own.filter((row) => row.offeringId === section.offering.id),
+    }))
+  }
   const summaries: LearningCourseSummary[] = []
   // Bound concurrent requests while loading complete summaries, including later pages.
   for (let start = 0; start < sections.length; start += 4) {

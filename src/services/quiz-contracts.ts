@@ -1,4 +1,4 @@
-import type { Quiz } from './contracts'
+import type { Offering, Quiz } from './contracts'
 import type { Page, PageQuery, Topic } from './course-contracts'
 export type QuestionKind = 'SINGLE_CHOICE' | 'TRUE_FALSE'
 export interface QuestionInput {
@@ -21,10 +21,14 @@ export interface QuestionSelection {
 export interface CopiedQuestion extends QuestionInput {
   id: number
   questionItemId: number
-  sourceVersion: number
+  sourceVersion: number | null
   ordinal: number
 }
 export interface QuizInput {
+  maxAttempts?: number
+  gradingMethod?: 'HIGHEST_SCORE' | 'LATEST_ATTEMPT' | 'AVERAGE'
+  releasePolicy?: 'AFTER_CLOSE' | 'IMMEDIATE'
+  totalPoints?: number
   title: string
   openAt: string
   closeAt: string
@@ -40,8 +44,14 @@ export interface QuizQuery extends PageQuery {
   status?: string
 }
 export interface QuizView {
+  maxAttempts?: number
+  gradingMethod?: 'HIGHEST_SCORE' | 'LATEST_ATTEMPT' | 'AVERAGE'
+  releasePolicy?: 'AFTER_CLOSE' | 'IMMEDIATE'
+  countedScore?: number | null
+  ownAttempts?: { id: number; attemptNo: number; score: number | null }[]
   quiz: Quiz
   offeringLabel: string
+  offeringStatus?: Offering['status']
   teacher: boolean
   writable: boolean
   canStart: boolean
@@ -67,6 +77,7 @@ export interface QuizQuestionView {
   options: Record<string, string>
 }
 export interface QuizAttempt {
+  attemptNo?: number
   id: number
   quizId: number
   status: 'IN_PROGRESS' | 'SEALED'
@@ -87,7 +98,7 @@ export interface ResultBreakdown {
 export type QuizResultView =
   | {
       attemptId: number
-      state: 'WAITING_FOR_CLOSE' | 'PROCESSING' | 'WAITING_FOR_RESTORE'
+      state: 'WAITING_FOR_CLOSE' | 'PROCESSING' | 'WAITING_FOR_RESTORE' | 'GRADING_ERROR'
       maxScore: number
       releasedAt: null
       breakdown: []
@@ -133,6 +144,7 @@ export interface QuizService {
     id: number | null,
     input: QuizInput,
     expectedVersion?: number,
+    scheduleOnly?: boolean,
   ): Promise<QuizView>
   publish(id: number, expectedVersion: number): Promise<QuizView>
   archive(id: number, expectedVersion: number): Promise<QuizView>

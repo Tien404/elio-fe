@@ -1,9 +1,11 @@
 import type { AttemptView, QuizService } from './quiz-contracts'
+type AnswerService = Pick<QuizService, 'attempt' | 'saveAnswer' | 'seal'>
 interface QueueState {
   view: AttemptView
   expectedVersion: number
   local: Record<string, string>
   pending: number
+  saving: Record<string, string>
   paused: boolean
   sealing: boolean
   error: Error | null
@@ -16,10 +18,11 @@ interface CachedChoices {
 export class AnswerQueue {
   private state: QueueState
   private tail: Promise<void> = Promise.resolve()
+  private latestSave = new Map<number, symbol>()
   private listeners = new Set<() => void>()
   private storageKey: string
-  private service: QuizService
-  constructor(service: QuizService, initial: AttemptView, actorId: number) {
+  private service: AnswerService
+  constructor(service: AnswerService, initial: AttemptView, actorId: number) {
     this.service = service
     this.storageKey = `elio.quiz.choices.${actorId}.${initial.attempt.id}`
     let cached: CachedChoices | null
@@ -43,6 +46,7 @@ export class AnswerQueue {
       expectedVersion: old,
       local,
       pending: 0,
+      saving: {},
       paused: old !== initial.attempt.version,
       sealing: false,
       error:
@@ -78,9 +82,21 @@ export class AnswerQueue {
     this.update({ local: { ...this.state.local, [id]: key } })
   }
   enqueue(id: number) {
-    const key = this.state.local[String(id)] ?? this.state.view.attempt.answers[String(id)]
-    if (!key || this.state.paused || this.state.sealing) return
-    this.update({ pending: this.state.pending + 1, error: null })
+    const key = this.state.local[String(id)]
+    if (!key || this.state.paused || this.state.sealing || this.state.saving[id] === key) return
+    if (!this.latestSave.has(id) && this.state.view.attempt.answers[id] === key) {
+      const local = { ...this.state.local }
+      delete local[id]
+      this.update({ local })
+      return
+    }
+    const token = Symbol()
+    this.latestSave.set(id, token)
+    this.update({
+      pending: this.state.pending + 1,
+      saving: { ...this.state.saving, [id]: key },
+      error: null,
+    })
     this.tail = this.tail.then(async () => {
       try {
         if (this.state.paused) return
@@ -91,7 +107,7 @@ export class AnswerQueue {
             this.state.expectedVersion,
           ),
           local = { ...this.state.local }
-        if (local[String(id)] === key) delete local[String(id)]
+        if (this.latestSave.get(id) === token && local[id] === key) delete local[id]
         this.update({ view, expectedVersion: view.attempt.version, local })
       } catch (error) {
         this.update({
@@ -103,7 +119,12 @@ export class AnswerQueue {
           reviewed: null,
         })
       } finally {
-        this.update({ pending: this.state.pending - 1 })
+        const saving = { ...this.state.saving }
+        if (this.latestSave.get(id) === token) {
+          this.latestSave.delete(id)
+          delete saving[id]
+        }
+        this.update({ pending: this.state.pending - 1, saving })
       }
     })
   }

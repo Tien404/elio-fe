@@ -1,13 +1,15 @@
-import { useState, useSyncExternalStore } from 'react'
+import { useOfferingRoute } from '@/services/use-offering-route'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import { Link } from 'react-router'
 import { Panel, Dialog, Status, DataTable, NavigationButton, Icon } from '@/components/ui'
 import { ActionButton as Button, Feedback, LoadState } from '@/components/workspace/WorkspaceUI'
 import { AttemptResult } from '@/components/quiz/AttemptResult'
-import { services } from '@/services'
+import { apiMode, services } from '@/services'
 import { useAttempt } from '@/services/use-quiz'
 import { AnswerQueue } from '@/services/answer-queue'
 import { useAction } from '@/services/use-action'
 import { useAuth } from '@/services/auth-context'
+import { requiresSessionRefresh, ServiceError } from '@/services/errors'
 import { useCountdown } from '@/services/use-countdown'
 import { formatInstant } from '@/services/presentation'
 import type { AttemptView } from '@/services/quiz-contracts'
@@ -15,11 +17,13 @@ import { WorkspaceAccessContext } from '@/services/workspace-access-context'
 export function QuizAttempt() {
   const result = useAttempt(),
     { identity } = useAuth()
+  const accessLost =
+    result.error instanceof ServiceError && [401, 403, 404].includes(result.error.status)
   return (
     <div className="course-workspace">
       <h1>Quiz attempt</h1>
       <LoadState {...result} retry={result.reload} />
-      {result.data && (
+      {result.data && !accessLost && (
         <WorkspaceAccessContext.Provider
           value={result.error ? { error: result.error, retry: result.reload } : undefined}
         >
@@ -29,6 +33,7 @@ export function QuizAttempt() {
               initial={result.data}
               live={result.data}
               reload={result.reload}
+              accessPaused={!!result.error}
             />
           </div>
         </WorkspaceAccessContext.Provider>
@@ -40,29 +45,41 @@ function AttemptWorkspace({
   initial,
   live,
   reload,
+  accessPaused,
 }: {
   initial: AttemptView
   live: AttemptView
   reload(): void
+  accessPaused: boolean
 }) {
-  const { identity } = useAuth(),
+  const { prefix } = useOfferingRoute()
+  const { identity, refresh } = useAuth(),
     [queue] = useState(() => new AnswerQueue(services.quiz, initial, identity!.me.account.id)),
     state = useSyncExternalStore(queue.subscribe, queue.getSnapshot),
     [index, setIndex] = useState(0),
     [review, setReview] = useState(false),
     [seal, setSeal] = useState(false),
     action = useAction(),
-    seconds = useCountdown(live.attempt.endAt, live.serverNow),
-    view = state.view.attempt.version > live.attempt.version ? state.view : live,
+    view =
+      state.view.attempt.version > live.attempt.version ||
+      (state.view.attempt.version === live.attempt.version &&
+        Date.parse(state.view.serverNow) > Date.parse(live.serverNow))
+        ? state.view
+        : live,
+    seconds = useCountdown(view.attempt.endAt, view.serverNow),
     q = view.attempt.questions[index],
-    durable = state.view.attempt.answers,
-    choice = q ? (state.local[String(q.id)] ?? durable[String(q.id)] ?? '') : '',
     active = view.attempt.status === 'IN_PROGRESS' && seconds > 0,
-    canEdit = active && view.canAnswer && !view.teacher && !state.paused && !state.sealing,
+    durable = active && !view.teacher ? state.view.attempt.answers : view.attempt.answers,
+    choice = q ? ((active ? state.local[q.id] : undefined) ?? durable[q.id] ?? '') : '',
+    canEdit =
+      active && view.canAnswer && !accessPaused && !view.teacher && !state.paused && !state.sealing,
     otherTab =
       live.attempt.version > state.expectedVersion &&
       state.pending === 0 &&
       live.attempt.status === 'IN_PROGRESS'
+  useEffect(() => {
+    if (requiresSessionRefresh(state.error)) void refresh()
+  }, [state.error, refresh])
   const rows = view.attempt.questions.map((q) => ({
     q,
     saved: durable[String(q.id)] ?? '',
@@ -71,7 +88,7 @@ function AttemptWorkspace({
   return (
     <>
       <div className="breadcrumb">
-        <Link to={`/quizzes/${view.attempt.quizId}`}>{view.quizTitle}</Link> / Attempt{' '}
+        <Link to={`${prefix}/quizzes/${view.attempt.quizId}`}>{view.quizTitle}</Link> / Attempt{' '}
         {view.attempt.id}
       </div>
       <Panel title={view.quizTitle} icon="book-small">
@@ -83,7 +100,10 @@ function AttemptWorkspace({
         </div>
         <details className="attempt-timing">
           <summary>Attempt details</summary>
-          <p>One attempt · {view.student.displayName}</p>
+          <p>
+            {view.attempt.attemptNo ? `Attempt ${view.attempt.attemptNo}` : 'This attempt'} ·{' '}
+            {view.student.displayName}
+          </p>
           <p>
             Started: {formatInstant(view.attempt.startedAt)}
             <br />
@@ -105,7 +125,10 @@ function AttemptWorkspace({
                   name={`attempt-question-${q.id}`}
                   value={key}
                   checked={choice === key}
-                  onChange={() => queue.edit(q.id, key)}
+                  onChange={() => {
+                    queue.edit(q.id, key)
+                    if (apiMode) queue.enqueue(q.id)
+                  }}
                 />
                 <span>
                   {key} · {text}
@@ -124,7 +147,7 @@ function AttemptWorkspace({
               <Button
                 icon="save-dark"
                 tone="secondary"
-                disabled={!canEdit || otherTab || !choice}
+                disabled={!canEdit || otherTab || !state.local[q.id] || !!state.saving[q.id]}
                 onClick={() => queue.enqueue(q.id)}
               >
                 Save answer
@@ -137,14 +160,18 @@ function AttemptWorkspace({
               onClick={() => setIndex((i) => i + 1)}
             />
           </div>
-          <p>
-            {state.local[String(q.id)]
-              ? 'Unsaved answer'
-              : durable[String(q.id)]
-                ? state.view.savedAt[String(q.id)]
-                  ? `Saved · ${formatInstant(state.view.savedAt[String(q.id)])}`
-                  : 'Saved'
-                : 'Unanswered'}
+          <p role="status">
+            {active && state.saving[q.id]
+              ? 'Saving answer…'
+              : active && state.local[q.id]
+                ? state.paused
+                  ? 'Save failed · Local answer kept'
+                  : 'Unsaved answer'
+                : durable[q.id]
+                  ? (active && !view.teacher ? state.view.savedAt[q.id] : view.savedAt[q.id])
+                    ? `Saved · ${formatInstant((active && !view.teacher ? state.view : view).savedAt[q.id])}`
+                    : 'Saved'
+                  : 'Unanswered'}
           </p>
         </Panel>
       )}
@@ -180,10 +207,10 @@ function AttemptWorkspace({
           >
             Check saved answers
           </Button>
-          {!view.teacher && active && (
+          {!view.teacher && active && view.canAnswer && (
             <Button
               icon="quiz-submit"
-              disabled={state.sealing || state.paused || otherTab}
+              disabled={state.sealing || state.paused || otherTab || accessPaused}
               onClick={() => setSeal(true)}
             >
               Submit early
@@ -243,7 +270,7 @@ function AttemptWorkspace({
                   Use saved answers
                 </Button>
                 <Button
-                  disabled={state.sealing}
+                  disabled={state.sealing || !state.reviewed.canAnswer}
                   onClick={() => {
                     queue.adopt(true)
                     setReview(false)
@@ -280,7 +307,15 @@ function AttemptWorkspace({
             </Button>
             <Button
               icon="complete-white"
-              disabled={state.sealing || action.pending}
+              disabled={
+                state.sealing ||
+                state.paused ||
+                otherTab ||
+                action.pending ||
+                !active ||
+                !view.canAnswer ||
+                accessPaused
+              }
               onClick={() =>
                 void action.run(
                   () => queue.seal(),

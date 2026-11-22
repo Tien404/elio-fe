@@ -1,8 +1,10 @@
+import { useOfferingRoute } from '@/services/use-offering-route'
 import { Link } from 'react-router'
 import { Panel, Status, DataTable } from '@/components/ui'
 import type { AttemptView } from '@/services/quiz-contracts'
 import { formatInstant } from '@/services/presentation'
 export function AttemptResult({ view }: { view: AttemptView }) {
+  const { prefix } = useOfferingRoute()
   const r = view.result
   return (
     <Panel title="Quiz result" icon="publish-small">
@@ -12,24 +14,29 @@ export function AttemptResult({ view }: { view: AttemptView }) {
             {r.score} / {r.maxScore} · Published
           </p>
           <p>Released {formatInstant(r.releasedAt)}.</p>
-          <DataTable
-            rows={r.breakdown}
-            rowKey={(b) => b.questionId}
-            columns={[
-              {
-                label: 'Question',
-                render: (b) =>
-                  view.attempt.questions.find((q) => q.id === b.questionId)?.prompt ?? b.questionId,
-              },
-              {
-                label: 'Your saved answer',
-                render: (b) => view.attempt.answers[String(b.questionId)] ?? 'Unanswered',
-              },
-              { label: 'Correct answer', render: (b) => b.correctKey },
-              { label: 'Points', render: (b) => b.awardedPoints },
-              { label: 'Explanation', render: (b) => b.explanation ?? 'No explanation.' },
-            ]}
-          />
+          {r.breakdown.length ? (
+            <DataTable
+              rows={r.breakdown}
+              rowKey={(b) => b.questionId}
+              columns={[
+                {
+                  label: 'Question',
+                  render: (b) =>
+                    view.attempt.questions.find((q) => q.id === b.questionId)?.prompt ??
+                    b.questionId,
+                },
+                {
+                  label: 'Your saved answer',
+                  render: (b) => view.attempt.answers[String(b.questionId)] ?? 'Unanswered',
+                },
+                { label: 'Correct answer', render: (b) => b.correctKey },
+                { label: 'Points', render: (b) => b.awardedPoints },
+                { label: 'Explanation', render: (b) => b.explanation ?? 'No explanation.' },
+              ]}
+            />
+          ) : (
+            <p>Answer details are available after the quiz closes.</p>
+          )}
         </>
       ) : (
         <Status>
@@ -42,7 +49,10 @@ export function AttemptResult({ view }: { view: AttemptView }) {
                 : 'Finalization pending · Result processing. Only durable saved answers are used.'}
         </Status>
       )}
-      <Link className="button secondary" to={`/results?offeringId=${view.offeringId}`}>
+      <Link
+        className="button secondary"
+        to={prefix ? `${prefix}/results` : `/results?offeringId=${view.offeringId}`}
+      >
         {view.teacher ? 'Open gradebook' : 'My published results'}
       </Link>
     </Panel>

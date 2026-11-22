@@ -124,11 +124,20 @@ export function quizView(q: Quiz): QuizView {
   const ctx = requireAcademic(q.offeringId),
     s = getStore(),
     m = s.quizEngine.details[q.id],
-    own = s.quizEngine.attempts.find((a) => a.quizId === q.id && a.studentId === ctx.me.account.id)
+    own = s.quizEngine.attempts
+      .filter((a) => a.quizId === q.id && a.studentId === ctx.me.account.id)
+      .at(-1)
   const teacher = ctx.teacher,
     published = !!m?.published
   return {
     quiz: q,
+    maxAttempts: q.maxAttempts ?? 1,
+    gradingMethod: q.gradingMethod ?? 'HIGHEST_SCORE',
+    releasePolicy: q.releasePolicy ?? 'AFTER_CLOSE',
+    ownAttempts: s.quizEngine.attempts
+      .filter((a) => a.quizId === q.id && a.studentId === ctx.me.account.id)
+      .map((a, i) => ({ id: a.id, attemptNo: i + 1, score: a.releasedAt ? a.score : null })),
+    offeringStatus: ctx.offering.status,
     offeringLabel: `${ctx.offering.courseCode} · ${ctx.offering.sectionCode} · ${ctx.offering.semester}`,
     teacher,
     writable: ctx.permissions.teach && q.status !== 'ARCHIVED',
@@ -139,7 +148,11 @@ export function quizView(q: Quiz): QuizView {
       ctx.offering.status === 'OPEN' &&
       now() >= Date.parse(q.openAt) &&
       now() < Date.parse(q.closeAt) &&
-      !own,
+      (!own ||
+        own.status === 'IN_PROGRESS' ||
+        q.maxAttempts === 0 ||
+        s.quizEngine.attempts.filter((a) => a.quizId === q.id && a.studentId === ctx.me.account.id)
+          .length < (q.maxAttempts ?? 1)),
     scheduleLocked: s.quizEngine.attempts.some((a) => a.quizId === q.id),
     serverNow: new Date(now()).toISOString(),
     topicId: m?.topicId ?? null,
@@ -334,6 +347,9 @@ export const mockQuiz: QuizService = {
           id: old?.id ?? nextId(s.quizzes),
           offeringId,
           title: input.title.trim(),
+          maxAttempts: input.maxAttempts ?? 1,
+          gradingMethod: input.gradingMethod ?? 'HIGHEST_SCORE',
+          releasePolicy: input.releasePolicy ?? 'AFTER_CLOSE',
           status: old?.status ?? 'DRAFT',
           openAt: new Date(input.openAt).toISOString(),
           closeAt: new Date(input.closeAt).toISOString(),
@@ -416,11 +432,13 @@ export const mockQuiz: QuizService = {
       const { q, me, offering, teacher, store: s } = quizAccess(id)
       if (teacher || me.account.role !== 'STUDENT')
         throw new ServiceError(403, 'Only an eligible student can start a quiz.')
-      if (s.quizEngine.attempts.some((a) => a.quizId === id && a.studentId === me.account.id))
-        throw new ServiceError(
-          409,
-          'An attempt already exists. Check existing attempt and resume; the timer is unchanged.',
-        )
+      const previous = s.quizEngine.attempts.filter(
+        (a) => a.quizId === id && a.studentId === me.account.id,
+      )
+      const running = previous.find((a) => a.status === 'IN_PROGRESS')
+      if (running) return attemptView(running)
+      if ((q.maxAttempts ?? 1) > 0 && previous.length >= (q.maxAttempts ?? 1))
+        throw new ServiceError(409, 'You have used all attempts.')
       if (
         q.status !== 'PUBLISHED' ||
         offering.status !== 'OPEN' ||
@@ -471,7 +489,9 @@ export const mockQuiz: QuizService = {
       const { store: s, me, teacher } = quizAccess(id)
       if (teacher || me.account.role !== 'STUDENT')
         throw new ServiceError(403, 'Own attempt recovery is student-only.')
-      const a = s.quizEngine.attempts.find((a) => a.quizId === id && a.studentId === me.account.id)
+      const a = s.quizEngine.attempts
+        .filter((a) => a.quizId === id && a.studentId === me.account.id)
+        .at(-1)
       return a ? attemptView(a) : null
     }),
   attempt: (id) => request(() => attemptView(attemptAccess(id).a)),

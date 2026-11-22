@@ -10,13 +10,21 @@ import {
 } from '@/components/workspace/WorkspaceUI'
 import { QuizPreview } from './QuizPreview'
 import { services } from '@/services'
+import { mustReview } from '@/services/errors'
 import { useAction } from '@/services/use-action'
 import { useResource } from '@/services/use-resource'
 import { vietnamInput, utcInput } from '@/services/assessment-time'
 import type { QuizInput, QuizView, QuestionItem, CopiedQuestion } from '@/services/quiz-contracts'
 function fromView(v: QuizView): QuizInput {
   return {
-    ...v.quiz,
+    title: v.quiz.title,
+    maxAttempts: v.maxAttempts ?? 1,
+    gradingMethod: v.gradingMethod ?? 'HIGHEST_SCORE',
+    releasePolicy: v.releasePolicy ?? 'AFTER_CLOSE',
+    totalPoints: v.quiz.maxScore,
+    openAt: v.quiz.openAt,
+    closeAt: v.quiz.closeAt,
+    durationMinutes: v.quiz.durationMinutes,
     weight: v.weight,
     topicId: v.topicId,
     mandatory: v.mandatory,
@@ -40,6 +48,9 @@ export function QuizEditor({
         ? fromView(view)
         : {
             title: '',
+            maxAttempts: 1,
+            gradingMethod: 'HIGHEST_SCORE',
+            releasePolicy: 'AFTER_CLOSE',
             openAt: new Date().toISOString(),
             closeAt: new Date(Date.now() + 3600000).toISOString(),
             durationMinutes: 20,
@@ -49,6 +60,7 @@ export function QuizEditor({
             questions: [],
           },
     ),
+    [distributionTotal, setDistributionTotal] = useState(10),
     [preview, setPreview] = useState(false),
     [page, setPage] = useState(1),
     [search, setSearch] = useState(''),
@@ -113,6 +125,7 @@ export function QuizEditor({
       snapshot?.quiz.id ?? null,
       input,
       snapshot?.quiz.version,
+      published,
     )
     if (publish) {
       setSnapshot(value)
@@ -171,6 +184,34 @@ export function QuizEditor({
         <LoadState {...topics} retry={topics.reload} />
         <div className="form-grid">
           <Field
+            label="Maximum attempts (0 = unlimited)"
+            type="number"
+            min={0}
+            max={100}
+            value={input.maxAttempts ?? 1}
+            onChange={(e) => update('maxAttempts', Number(e.target.value))}
+            disabled={!!published}
+          />
+          <Select
+            label="Counted score"
+            value={input.gradingMethod ?? 'HIGHEST_SCORE'}
+            onChange={(e) => update('gradingMethod', e.target.value as QuizInput['gradingMethod'])}
+            disabled={!!published}
+          >
+            <option value="HIGHEST_SCORE">Highest score</option>
+            <option value="LATEST_ATTEMPT">Latest attempt</option>
+            <option value="AVERAGE">Average</option>
+          </Select>
+          <Select
+            label="Release results"
+            value={input.releasePolicy ?? 'AFTER_CLOSE'}
+            onChange={(e) => update('releasePolicy', e.target.value as QuizInput['releasePolicy'])}
+            disabled={!!published}
+          >
+            <option value="AFTER_CLOSE">After quiz closes</option>
+            <option value="IMMEDIATE">After each attempt (answers after close)</option>
+          </Select>
+          <Field
             label="Weight (%)"
             type="number"
             min={0}
@@ -210,6 +251,39 @@ export function QuizEditor({
             value={input.durationMinutes}
             onChange={(e) => update('durationMinutes', Number(e.target.value))}
           />
+          {!published && (
+            <div className="form-grid">
+              <Field
+                label="Total to distribute across questions"
+                type="number"
+                min={0.01}
+                step={0.01}
+                value={distributionTotal}
+                onChange={(e) => setDistributionTotal(Number(e.target.value))}
+              />
+              <Button
+                tone="secondary"
+                disabled={
+                  !input.questions.length ||
+                  !Number.isFinite(distributionTotal) ||
+                  Math.round(distributionTotal * 100) < input.questions.length
+                }
+                onClick={() => {
+                  const cents = Math.round(distributionTotal * 100),
+                    base = Math.floor(cents / input.questions.length)
+                  update(
+                    'questions',
+                    input.questions.map((q, i) => ({
+                      ...q,
+                      points: (base + (i < cents % input.questions.length ? 1 : 0)) / 100,
+                    })),
+                  )
+                }}
+              >
+                Distribute points equally
+              </Button>
+            </div>
+          )}
           <Field
             label="Maximum score · sum of question points"
             readOnly
@@ -221,6 +295,7 @@ export function QuizEditor({
         <legend>Question selection and order</legend>
         <Field
           label="Search bank"
+          maxLength={200}
           value={search}
           onChange={(e) => {
             setSearch(e.target.value)
@@ -320,7 +395,7 @@ export function QuizEditor({
         <Button
           icon="save-dark"
           tone="secondary"
-          disabled={action.pending || !!snapshot?.scheduleLocked}
+          disabled={action.pending || mustReview(action.error) || !!snapshot?.scheduleLocked}
           onClick={() =>
             void action.run(
               () => save(false),
@@ -333,7 +408,7 @@ export function QuizEditor({
         {!published && (
           <Button
             icon="complete-white"
-            disabled={action.pending}
+            disabled={action.pending || mustReview(action.error) || !input.questions.length}
             onClick={() =>
               void action.run(
                 () => save(true),

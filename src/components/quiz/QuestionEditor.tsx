@@ -7,6 +7,7 @@ import {
   TextArea,
 } from '@/components/workspace/WorkspaceUI'
 import { services } from '@/services'
+import { mustReview } from '@/services/errors'
 import { useAction } from '@/services/use-action'
 import type { QuestionInput, QuestionItem } from '@/services/quiz-contracts'
 export function QuestionEditor({
@@ -23,8 +24,8 @@ export function QuestionEditor({
       question ?? {
         prompt: '',
         kind: 'SINGLE_CHOICE',
-        options: { A: '', B: '', C: '', D: '' },
-        correctKey: 'A',
+        options: { '1': '', '2': '', '3': '', '4': '' },
+        correctKey: '1',
         points: 1,
         explanation: null,
       },
@@ -35,16 +36,20 @@ export function QuestionEditor({
   }
   function kind(value: QuestionInput['kind']) {
     const options: Record<string, string> =
-      value === 'TRUE_FALSE' ? { true: 'True', false: 'False' } : { A: '', B: '', C: '', D: '' }
+      value === 'TRUE_FALSE'
+        ? { '1': 'True', '2': 'False' }
+        : { '1': '', '2': '', '3': '', '4': '' }
     setInput((v) => ({
       ...v,
       kind: value,
       options,
-      correctKey: value === 'TRUE_FALSE' ? 'true' : 'A',
+      correctKey: '1',
     }))
   }
   function add() {
-    const key = 'ABCDEFGHIJKLMNOPQRST'.split('').find((k) => !Object.hasOwn(input.options, k))
+    const key = Array.from({ length: 8 }, (_, i) => String(i + 1)).find(
+      (k) => !Object.hasOwn(input.options, k),
+    )
     if (key) field('options', { ...input.options, [key]: '' })
   }
   return (
@@ -89,6 +94,7 @@ export function QuestionEditor({
             <div key={key}>
               <Field
                 label={`Choice ${key}`}
+                maxLength={2000}
                 value={value}
                 onChange={(e) => field('options', { ...input.options, [key]: e.target.value })}
               />
@@ -99,7 +105,11 @@ export function QuestionEditor({
                   onClick={() => {
                     const next = { ...input.options }
                     delete next[key]
-                    field('options', next)
+                    setInput((v) => ({
+                      ...v,
+                      options: next,
+                      correctKey: key === v.correctKey ? '' : v.correctKey,
+                    }))
                   }}
                 >
                   Remove
@@ -142,6 +152,7 @@ export function QuestionEditor({
         />
         <TextArea
           label="Explanation (shown only after result release)"
+          maxLength={10000}
           value={input.explanation ?? ''}
           onChange={(e) => field('explanation', e.target.value || null)}
         />
@@ -153,7 +164,7 @@ export function QuestionEditor({
         </Button>
         <Button
           icon="quiz-save-white"
-          disabled={action.pending}
+          disabled={action.pending || mustReview(action.error)}
           onClick={() =>
             void action.run(
               () =>

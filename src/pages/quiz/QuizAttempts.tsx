@@ -1,18 +1,22 @@
+import { useOfferingRoute } from '@/services/use-offering-route'
 import { useCallback, useState } from 'react'
 import { Link } from 'react-router'
 import { Panel, DataTable, Status } from '@/components/ui'
 import { LoadState, Pager, ActionButton as Button } from '@/components/workspace/WorkspaceUI'
 import { QuizNav } from '@/components/quiz/QuizNav'
 import { useQuiz } from '@/services/use-quiz'
+import { quizResultStatus } from '@/services/quiz-status'
 import { useResource } from '@/services/use-resource'
-import { services } from '@/services'
+import { apiMode, services } from '@/services'
 import { useAuth } from '@/services/auth-context'
 export function QuizAttempts() {
+  const { prefix } = useOfferingRoute()
+  const attemptPath = prefix ? `${prefix}/quizzes/attempts` : '/quiz-attempts'
   const quiz = useQuiz(),
     view = quiz.data,
     { identity } = useAuth(),
     [page, setPage] = useState(1),
-    id = view?.quiz.id ?? 0,
+    id = view?.teacher ? view.quiz.id : 0,
     load = useCallback(
       () => (id ? services.quiz.attempts(id, { page }) : Promise.resolve(null)),
       [id, page],
@@ -22,7 +26,10 @@ export function QuizAttempts() {
     <div className="course-workspace">
       <h1>Attempts and results</h1>
       <LoadState {...quiz} retry={quiz.reload} />
-      {view && !quiz.error && (
+      {view && !view.teacher && (
+        <Status error>Teaching access is required to view other attempts.</Status>
+      )}
+      {view?.teacher && !quiz.error && (
         <>
           <QuizNav view={view} />
           <Panel title={view.quiz.title} icon="book-small">
@@ -55,12 +62,12 @@ export function QuizAttempts() {
                         render: (v) =>
                           v.result.state === 'PUBLISHED'
                             ? `${v.result.score} / ${v.result.maxScore} · Published`
-                            : v.result.state.replaceAll('_', ' ').toLowerCase(),
+                            : quizResultStatus[v.result.state],
                       },
                       {
                         label: 'Actions',
                         render: (v) => (
-                          <Link className="button secondary" to={`/quiz-attempts/${v.attempt.id}`}>
+                          <Link className="button secondary" to={`${attemptPath}/${v.attempt.id}`}>
                             View attempt
                           </Link>
                         ),
@@ -87,8 +94,7 @@ export function QuizAttempts() {
             <p>
               Schedule and duration lock from the first attempt. Results release automatically after
               close, successful finalization and an Open course section. Failed processing is
-              unavailable, never a zero. Demo tools simulate the worker; no manual score override is
-              available.
+              unavailable. {!apiMode && 'Demo tools simulate the worker.'}
             </p>
           </Panel>
         </>

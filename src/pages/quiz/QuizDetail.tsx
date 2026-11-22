@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useOfferingRoute } from '@/services/use-offering-route'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { Panel, Dialog, Status } from '@/components/ui'
 import {
@@ -14,9 +15,12 @@ import { QuizNav } from '@/components/quiz/QuizNav'
 import { services } from '@/services'
 import { useQuiz } from '@/services/use-quiz'
 import { useAction } from '@/services/use-action'
+import { quizAvailability } from '@/services/quiz-status'
 import { formatInstant } from '@/services/presentation'
 import { WorkspaceAccessContext } from '@/services/workspace-access-context'
 export function QuizDetail() {
+  const { prefix } = useOfferingRoute()
+  const attemptPath = prefix ? `${prefix}/quizzes/attempts` : '/quiz-attempts'
   const result = useQuiz(),
     view = result.data,
     [edit, setEdit] = useState(false),
@@ -25,6 +29,14 @@ export function QuizDetail() {
     [transition, setTransition] = useState<{ kind: 'publish' | 'archive'; version: number }>(),
     action = useAction(),
     navigate = useNavigate()
+  const reload = result.reload
+  const followWindow =
+    !!view && !view.teacher && !view.attemptId && quizAvailability(view) !== 'Closed'
+  useEffect(() => {
+    if (!followWindow) return
+    const timer = window.setInterval(reload, 5000)
+    return () => window.clearInterval(timer)
+  }, [followWindow, reload])
   return (
     <div className="course-workspace">
       <h1>Quiz details</h1>
@@ -51,8 +63,17 @@ export function QuizDetail() {
                   <dd>{formatInstant(view.quiz.closeAt)}</dd>
                 </div>
                 <div>
+                  <dt>Availability</dt>
+                  <dd>{quizAvailability(view)}</dd>
+                </div>
+                <div>
                   <dt>Duration</dt>
-                  <dd>{view.quiz.durationMinutes} minutes · One attempt per student</dd>
+                  <dd>
+                    {view.quiz.durationMinutes} minutes ·{' '}
+                    {view.maxAttempts === 0
+                      ? 'Unlimited attempts'
+                      : `${view.maxAttempts ?? 1} attempt(s)`}
+                  </dd>
                 </div>
               </dl>
               <Feedback action={action} />
@@ -93,7 +114,10 @@ export function QuizDetail() {
                   <Button icon="preview" tone="secondary" onClick={() => setPreview(true)}>
                     Preview
                   </Button>
-                  <Link className="button secondary" to={`/quizzes/${view.quiz.id}/attempts`}>
+                  <Link
+                    className="button secondary"
+                    to={`${prefix}/quizzes/${view.quiz.id}/attempts`}
+                  >
                     Attempts and results
                   </Link>
                 </div>
@@ -105,7 +129,7 @@ export function QuizDetail() {
                   </Status>
                   <div className="actions">
                     {view.attemptId ? (
-                      <Link className="button primary" to={`/quiz-attempts/${view.attemptId}`}>
+                      <Link className="button primary" to={`${attemptPath}/${view.attemptId}`}>
                         View my attempt
                       </Link>
                     ) : (
@@ -117,6 +141,23 @@ export function QuizDetail() {
                         Start quiz…
                       </Button>
                     )}
+                    {view.attemptId && view.canStart && (
+                      <Button icon="quiz-next" onClick={() => setStart(true)}>
+                        Start or resume attempt…
+                      </Button>
+                    )}
+                    {view.ownAttempts?.map((a) => (
+                      <Link key={a.id} className="button secondary" to={`${attemptPath}/${a.id}`}>
+                        Attempt {a.attemptNo}
+                        {a.score === null ? '' : ` · ${a.score}`}
+                      </Link>
+                    ))}
+                    {view.countedScore !== null && view.countedScore !== undefined && (
+                      <p>
+                        Counted score: {view.countedScore} ·{' '}
+                        {view.gradingMethod?.replaceAll('_', ' ').toLowerCase()}
+                      </p>
+                    )}
                     <Button
                       icon="refresh"
                       tone="secondary"
@@ -125,7 +166,7 @@ export function QuizDetail() {
                         void action.run(
                           () => services.quiz.own(view.quiz.id),
                           (v) => {
-                            if (v) navigate(`/quiz-attempts/${v.attempt.id}`)
+                            if (v) navigate(`${attemptPath}/${v.attempt.id}`)
                           },
                           'Existing attempt checked. If none exists, review the start window before starting.',
                         )
@@ -188,7 +229,10 @@ export function QuizDetail() {
               >
                 <Feedback action={action} />
                 <p>
-                  One attempt only. Duration: {view.quiz.durationMinutes} minutes. Close time:{' '}
+                  {view.maxAttempts === 0
+                    ? 'Unlimited attempts.'
+                    : `${view.maxAttempts ?? 1} attempt(s) allowed.`}{' '}
+                  Duration: {view.quiz.durationMinutes} minutes. Close time:{' '}
                   {formatInstant(view.quiz.closeAt)}. Reloading resumes the original attempt and end
                   time.
                 </p>
@@ -203,11 +247,11 @@ export function QuizDetail() {
                   </Button>
                   <Button
                     icon="quiz-next"
-                    disabled={action.pending}
+                    disabled={action.pending || !view.canStart}
                     onClick={() =>
                       void action.run(
                         () => services.quiz.start(view.quiz.id),
-                        (v) => navigate(`/quiz-attempts/${v.attempt.id}`),
+                        (v) => navigate(`${attemptPath}/${v.attempt.id}`),
                       )
                     }
                   >
@@ -221,7 +265,7 @@ export function QuizDetail() {
                       void action.run(
                         () => services.quiz.own(view.quiz.id),
                         (v) => {
-                          if (v) navigate(`/quiz-attempts/${v.attempt.id}`)
+                          if (v) navigate(`${attemptPath}/${v.attempt.id}`)
                         },
                         'Existing attempt checked.',
                       )

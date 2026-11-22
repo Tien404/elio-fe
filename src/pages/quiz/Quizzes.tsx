@@ -1,6 +1,7 @@
+import { useOfferingRoute } from '@/services/use-offering-route'
 import { useCallback, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
-import { Field, Panel, DataTable, PageHeader, EmptyState } from '@/components/ui'
+import { Field, Panel, DataTable, PageHeader, EmptyState, Status } from '@/components/ui'
 import {
   ActionButton as Button,
   Badge,
@@ -13,20 +14,26 @@ import { QuizEditor } from '@/components/quiz/QuizEditor'
 import { services } from '@/services'
 import { useAuth } from '@/services/auth-context'
 import { useResource } from '@/services/use-resource'
+import { quizAvailability } from '@/services/quiz-status'
 import { formatInstant } from '@/services/presentation'
 export function Quizzes() {
+  const { prefix, offeringId: fixedId } = useOfferingRoute()
   const { identity } = useAuth(),
+    academicRole = identity!.me.account.role !== 'ADMIN',
     teacher = identity!.me.account.role === 'INSTRUCTOR',
     [params, setParams] = useSearchParams(),
-    offeringId = Number(params.get('offeringId')) || 0,
+    offeringId = fixedId ?? (Number(params.get('offeringId')) || 0),
     search = params.get('search') ?? '',
     status = params.get('status') ?? '',
     page = Number(params.get('page')) || 1,
     [create, setCreate] = useState(false),
     navigate = useNavigate(),
     load = useCallback(
-      () => services.quiz.list({ offeringId: offeringId || undefined, search, status, page }),
-      [offeringId, search, status, page],
+      () =>
+        academicRole
+          ? services.quiz.list({ offeringId: offeringId || undefined, search, status, page })
+          : Promise.resolve(null),
+      [academicRole, offeringId, search, status, page],
     ),
     result = useResource(
       load,
@@ -45,6 +52,7 @@ export function Quizzes() {
       return p
     })
   }
+  if (!academicRole) return <Status error>Academic access is required to view quizzes.</Status>
   return (
     <div className="course-workspace">
       <PageHeader
@@ -62,7 +70,11 @@ export function Quizzes() {
                 </Button>
                 <Link
                   className="button secondary"
-                  to={`/question-bank${offeringId ? `?offeringId=${offeringId}` : ''}`}
+                  to={
+                    fixedId
+                      ? `${prefix}/quizzes/question-bank`
+                      : `/question-bank${offeringId ? `?offeringId=${offeringId}` : ''}`
+                  }
                 >
                   Question bank
                 </Link>
@@ -76,6 +88,7 @@ export function Quizzes() {
         <div className="filters">
           <Field
             label="Search quizzes"
+            maxLength={200}
             value={search}
             onChange={(e) => filter('search', e.target.value)}
           />
@@ -91,11 +104,13 @@ export function Quizzes() {
               <option value="ARCHIVED">Archived</option>
             </Select>
           )}
-          <SectionPicker
-            value={offeringId}
-            change={(id) => filter('offeringId', String(id || ''))}
-            all
-          />
+          {!fixedId && (
+            <SectionPicker
+              value={offeringId}
+              change={(id) => filter('offeringId', String(id || ''))}
+              all
+            />
+          )}
         </div>
         <LoadState {...result} retry={result.reload} />
         <LoadState {...section} retry={section.reload} />
@@ -110,7 +125,7 @@ export function Quizzes() {
                     label: 'Quiz',
                     render: (v) => (
                       <>
-                        <Link to={`/quizzes/${v.quiz.id}`}>{v.quiz.title}</Link>
+                        <Link to={`${prefix}/quizzes/${v.quiz.id}`}>{v.quiz.title}</Link>
                         <small>{v.offeringLabel}</small>
                       </>
                     ),
@@ -127,14 +142,12 @@ export function Quizzes() {
                         ? `${v.attemptCount} attempts${v.scheduleLocked ? ' · Schedule locked' : ''}`
                         : v.attemptId
                           ? 'Attempt started'
-                          : v.canStart
-                            ? 'Ready to start'
-                            : 'Not available yet',
+                          : quizAvailability(v),
                   },
                   {
                     label: 'Actions',
                     render: (v) => (
-                      <Link className="button secondary" to={`/quizzes/${v.quiz.id}`}>
+                      <Link className="button secondary" to={`${prefix}/quizzes/${v.quiz.id}`}>
                         {teacher ? 'Manage quiz' : v.attemptId ? 'View attempt' : 'View quiz'}
                       </Link>
                     ),
@@ -165,7 +178,7 @@ export function Quizzes() {
           close={() => setCreate(false)}
           saved={(id) => {
             setCreate(false)
-            navigate(`/quizzes/${id}`)
+            navigate(`${prefix}/quizzes/${id}`)
           }}
         />
       )}

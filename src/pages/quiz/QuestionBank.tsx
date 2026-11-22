@@ -1,3 +1,4 @@
+import { useOfferingRoute } from '@/services/use-offering-route'
 import { useCallback, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { Panel, DataTable, Field, Status, PageHeader, EmptyState } from '@/components/ui'
@@ -15,17 +16,21 @@ import { useAuth } from '@/services/auth-context'
 import type { QuestionItem } from '@/services/quiz-contracts'
 import { WorkspaceAccessContext } from '@/services/workspace-access-context'
 export function QuestionBank() {
+  const { prefix, offeringId: fixedId } = useOfferingRoute()
   const { identity } = useAuth(),
+    teacher = identity!.me.account.role === 'INSTRUCTOR',
     [params, setParams] = useSearchParams(),
-    offeringId = Number(params.get('offeringId')) || 0,
+    offeringId = fixedId ?? (Number(params.get('offeringId')) || 0),
     search = params.get('search') ?? '',
     kind = params.get('kind') ?? '',
     page = Number(params.get('page')) || 1,
     [editor, setEditor] = useState<QuestionItem | null | undefined>(),
     load = useCallback(
       () =>
-        offeringId ? services.quiz.bank(offeringId, { search, kind, page }) : Promise.resolve(null),
-      [offeringId, search, kind, page],
+        teacher && offeringId
+          ? services.quiz.bank(offeringId, { search, kind, page })
+          : Promise.resolve(null),
+      [teacher, offeringId, search, kind, page],
     ),
     result = useResource(
       load,
@@ -45,8 +50,7 @@ export function QuestionBank() {
       return p
     })
   }
-  if (identity!.me.account.role !== 'INSTRUCTOR')
-    return <Status error>Question bank requires current teaching access.</Status>
+  if (!teacher) return <Status error>Question bank requires current teaching access.</Status>
   return (
     <div className="course-workspace">
       <PageHeader
@@ -64,7 +68,11 @@ export function QuestionBank() {
               </Button>
               <Link
                 className="button secondary"
-                to={`/quizzes${offeringId ? `?offeringId=${offeringId}` : ''}`}
+                to={
+                  fixedId
+                    ? `${prefix}/quizzes`
+                    : `/quizzes${offeringId ? `?offeringId=${offeringId}` : ''}`
+                }
               >
                 Manage quizzes
               </Link>
@@ -91,12 +99,15 @@ export function QuestionBank() {
         >
           <Panel title="Questions" icon="quizzes">
             <div className="filters">
-              <SectionPicker
-                value={offeringId}
-                change={(id) => filter('offeringId', String(id || ''))}
-              />
+              {!fixedId && (
+                <SectionPicker
+                  value={offeringId}
+                  change={(id) => filter('offeringId', String(id || ''))}
+                />
+              )}
               <Field
                 label="Search questions"
+                maxLength={200}
                 value={search}
                 onChange={(e) => filter('search', e.target.value)}
               />

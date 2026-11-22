@@ -41,7 +41,7 @@ export function reconcileQuizClock(force = false) {
     if (
       a.finalization === 'SUCCEEDED' &&
       !a.releasedAt &&
-      now() >= Date.parse(q.closeAt) &&
+      (q.releasePolicy === 'IMMEDIATE' || now() >= Date.parse(q.closeAt)) &&
       s.offerings.find((o) => o.id === q.offeringId)?.status === 'OPEN'
     ) {
       a.releasedAt = new Date(now()).toISOString()
@@ -71,7 +71,10 @@ export function resultFor(a: StoredAttempt): QuizResultView {
       maxScore: q.maxScore,
       score: a.score,
       releasedAt: a.releasedAt,
-      breakdown: (s.quizEngine.details[q.id].published ?? []).map((c) => ({
+      breakdown: (now() >= Date.parse(q.closeAt)
+        ? (s.quizEngine.details[q.id].published ?? [])
+        : []
+      ).map((c) => ({
         questionId: c.id,
         correctKey: c.correctKey,
         explanation: c.explanation,
@@ -94,9 +97,20 @@ export function resultFor(a: StoredAttempt): QuizResultView {
   }
 }
 export function quizResultProjection(quizId: number, studentId: number) {
-  const a = getStore().quizEngine.attempts.find(
+  const q = getStore().quizzes.find((q) => q.id === quizId)
+  const attempts = getStore().quizEngine.attempts.filter(
     (a) => a.quizId === quizId && a.studentId === studentId,
   )
+  const released = attempts.filter((a) => a.releasedAt && a.score !== null)
+  const a = attempts.at(-1)
+  const scores = released.map((a) => a.score!)
+  const counted = scores.length
+    ? q?.gradingMethod === 'LATEST_ATTEMPT'
+      ? scores.at(-1)!
+      : q?.gradingMethod === 'AVERAGE'
+        ? scores.reduce((a, b) => a + b, 0) / scores.length
+        : Math.max(...scores)
+    : null
   if (!a)
     return getStore().assessment.quizResults.find(
       (r) => r.quizId === quizId && r.studentId === studentId,
@@ -104,12 +118,12 @@ export function quizResultProjection(quizId: number, studentId: number) {
   return {
     quizId,
     studentId,
-    state: a.releasedAt
+    state: released.length
       ? ('RELEASED' as const)
       : a.finalization === 'ERROR'
         ? ('GRADING_ERROR' as const)
         : ('AWAITING_PUBLICATION' as const),
-    score: a.releasedAt ? a.score : null,
+    score: counted,
     feedback: a.releasedAt ? 'Automatically graded from the published question snapshot.' : null,
   }
 }

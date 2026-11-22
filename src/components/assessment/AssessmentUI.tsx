@@ -1,4 +1,4 @@
-import { apiMode } from '@/services'
+import { useOfferingRoute } from '@/services/use-offering-route'
 import { useAssignment } from '@/services/use-assignment'
 import { Link, NavLink } from 'react-router'
 import { Status, Icon } from '@/components/ui'
@@ -6,34 +6,33 @@ import { LoadState } from '@/components/workspace/WorkspaceUI'
 import type { AssignmentView } from '@/services/assessment-contracts'
 import { formatInstant } from '@/services/presentation'
 export function AssignmentNav({ view }: { view: AssignmentView }) {
+  const { prefix } = useOfferingRoute()
   const a = view.assignment
   return (
     <>
       <div className="breadcrumb">
         <Link to={`/offerings/${a.offeringId}`}>{view.offeringLabel}</Link> /{' '}
-        <Link to="/assignments">Assignments</Link> / {a.title}
+        <Link to={`${prefix}/assignments`}>Assignments</Link> / {a.title}
       </div>
       <nav className="section-tabs" aria-label="Assignment navigation">
-        <NavLink end to={`/assignments/${a.id}`}>
+        <NavLink end to={`${prefix}/assignments/${a.id}`}>
           <Icon name="assignments" size={18} inheritColor />
           Assignment & submission
         </NavLink>
         {a.mode === 'GROUP' && (
-          <NavLink to={`/assignments/${a.id}/groups`}>
+          <NavLink to={`${prefix}/assignments/${a.id}/groups`}>
             {view.teacher ? 'Manage groups' : 'My group'}
           </NavLink>
         )}
-        {!apiMode && view.teacher && (
-          <NavLink to={`/assignments/${a.id}/grading`}>
+        {view.teacher && (
+          <NavLink to={`${prefix}/assignments/${a.id}/grading`}>
             <Icon name="gradebook" size={18} inheritColor />
             Grading
           </NavLink>
         )}
-        {!apiMode && (
-          <NavLink to={`/results?offeringId=${a.offeringId}`}>
-            {view.teacher ? 'Gradebook' : 'My results'}
-          </NavLink>
-        )}
+        <NavLink to={prefix ? `${prefix}/results` : `/results?offeringId=${a.offeringId}`}>
+          {view.teacher ? 'Gradebook' : 'My results'}
+        </NavLink>
       </nav>
       {!view.writable && view.teacher && <Status>Read-only assignment or course section.</Status>}
     </>

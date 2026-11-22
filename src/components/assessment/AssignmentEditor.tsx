@@ -4,7 +4,7 @@ import { Dialog, Field, Status } from '@/components/ui'
 import { Feedback, Select, TextArea } from '@/components/workspace/WorkspaceUI'
 import { FileUploader } from './Files'
 import { vietnamInput, utcInput } from '@/services/assessment-time'
-import { services, apiMode } from '@/services'
+import { services } from '@/services'
 import { useAction } from '@/services/use-action'
 import { useResource } from '@/services/use-resource'
 import type { AssignmentInput, AssignmentView } from '@/services/assessment-contracts'
@@ -30,6 +30,8 @@ export function AssignmentEditor({
       title: a?.title ?? '',
       instructions: a?.instructions ?? '',
       mode: a?.mode ?? 'INDIVIDUAL',
+      maxGroupSize: a?.maxGroupSize ?? 4,
+      groupFormation: a?.groupFormation ?? 'SELF',
       status: a?.status ?? 'DRAFT',
       openAt: a?.openAt ?? start,
       dueAt: a?.dueAt ?? start,
@@ -126,6 +128,28 @@ export function AssignmentEditor({
               ))}
             </Select>
             {topics.error && <Status error>{topics.error.message}</Status>}
+            {input.mode === 'GROUP' && (
+              <>
+                <Field
+                  label="Maximum group size"
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={input.maxGroupSize ?? 4}
+                  onChange={(e) => update('maxGroupSize', Number(e.target.value))}
+                />
+                <Select
+                  label="Group formation"
+                  value={input.groupFormation ?? 'SELF'}
+                  onChange={(e) =>
+                    update('groupFormation', e.target.value as 'SELF' | 'INSTRUCTOR')
+                  }
+                >
+                  <option value="SELF">Students choose their groups</option>
+                  <option value="INSTRUCTOR">Instructor assigns groups</option>
+                </Select>
+              </>
+            )}
             <div className="form-grid">
               <Field
                 label="Maximum score"
@@ -150,7 +174,7 @@ export function AssignmentEditor({
                 onChange={(e) => update('mode', e.target.value as AssignmentInput['mode'])}
               >
                 <option value="INDIVIDUAL">Individual</option>
-                {!apiMode && <option value="GROUP">Group</option>}
+                <option value="GROUP">Group</option>
               </Select>
               <Select
                 label="Requirement"

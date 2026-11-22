@@ -190,7 +190,17 @@ function activities(offeringId: number) {
 }
 export const gradingMethods = {
   queue: (id: number, query: import('@/services/course-contracts').PageQuery = {}) =>
-    request((p) => page(subjects(id), query, p === 'empty')),
+    request((p) => {
+      const { a, offering } = assignmentAccess(id)
+      const time = now()
+      return {
+        ...page(subjects(id), query, p === 'empty'),
+        canGrade:
+          offering.status === 'OPEN' && a.status === 'PUBLISHED' && time > Date.parse(a.cutoffAt),
+        serverNow: new Date(time).toISOString(),
+        subjectType: a.mode === 'GROUP' ? ('GROUP' as const) : ('STUDENT' as const),
+      }
+    }),
   saveGrade: (id: number, input: GradeInput) =>
     request(() =>
       commit(() => {
@@ -222,6 +232,8 @@ export const gradingMethods = {
             422,
             'Non-submission requires score 0 and a reason. It creates no submission receipt or completion.',
           )
+        if (input.specialMark === 'ABSENT' && !missing)
+          throw new ServiceError(422, 'Submitted work cannot be marked absent.')
         if (missing) requireReason(input.zeroReason!)
         if (g?.publishedRevision) requireReason(input.reason ?? '')
         stream ??= makeStream(a, subject.subjectId)
@@ -246,7 +258,8 @@ export const gradingMethods = {
                 .map((r) => r.revisionNo),
             ) + 1,
           sourceVersionNo: input.sourceVersionNo,
-          score: input.score,
+          score: input.specialMark ? 0 : input.score,
+          specialMark: input.specialMark ?? null,
           feedback: input.feedback,
           isMissingZero: missing,
           zeroReason: missing ? input.zeroReason : null,

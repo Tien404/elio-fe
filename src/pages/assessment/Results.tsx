@@ -1,3 +1,4 @@
+import { useOfferingRoute } from '@/services/use-offering-route'
 import { LearningOverview } from '@/components/personal/LearningOverview'
 import { ActionButton as Button } from '@/components/workspace/WorkspaceUI'
 import { OwnResultsTable } from '@/components/assessment/OwnResultsTable'
@@ -7,24 +8,29 @@ import { Link, useSearchParams } from 'react-router'
 import { Dialog, Field, Panel, Status, DataTable, Icon, PageHeader } from '@/components/ui'
 import { Feedback, LoadState, Pager, Select } from '@/components/workspace/WorkspaceUI'
 import { WeightsDialog } from '@/components/assessment/WeightsDialog'
-import { services } from '@/services'
+import { PublishedAssignmentResults } from '@/components/assessment/PublishedAssignmentResults'
+import { apiMode, services } from '@/services'
 import { useAuth } from '@/services/auth-context'
 import { useResource } from '@/services/use-resource'
 import { useAction } from '@/services/use-action'
 import type { ResultQuery } from '@/services/assessment-contracts'
 export function Results() {
   const [params] = useSearchParams()
-  return Number(params.get('offeringId')) > 0 ? (
-    <ResultsDetail />
-  ) : (
-    <LearningOverview mode="results" />
-  )
+  const { offeringId } = useOfferingRoute()
+  const { identity } = useAuth()
+  const sectionId = offeringId ?? (Number(params.get('offeringId')) || undefined)
+  if (identity!.me.account.role === 'ADMIN')
+    return <Status error>Academic access is required to view results.</Status>
+  if (apiMode && identity!.me.account.role === 'STUDENT')
+    return <PublishedAssignmentResults offeringId={sectionId} />
+  return apiMode || sectionId ? <ResultsDetail /> : <LearningOverview mode="results" />
 }
 function ResultsDetail() {
+  const { prefix, offeringId: fixedId } = useOfferingRoute()
   const { identity } = useAuth(),
     teacher = identity!.me.account.role === 'INSTRUCTOR',
     [params, setParams] = useSearchParams(),
-    offeringId = Number(params.get('offeringId')) || 0,
+    offeringId = fixedId ?? (Number(params.get('offeringId')) || 0),
     search = params.get('search') ?? '',
     state = (params.get('state') ?? 'ALL') as ResultQuery['state'],
     activityId = Number(params.get('activityId')) || undefined,
@@ -32,7 +38,10 @@ function ResultsDetail() {
     [weights, setWeights] = useState(false),
     [csv, setCsv] = useState(false),
     action = useAction()
-  const sectionsLoad = useCallback(() => services.courses.list({ pageSize: 100 }), []),
+  const sectionsLoad = useCallback(
+      () => (fixedId ? Promise.resolve(null) : services.courses.list({ pageSize: 100 })),
+      [fixedId],
+    ),
     sections = useResource(sectionsLoad, `results-sections:${identity!.me.account.id}`),
     load = useCallback(
       () =>
@@ -70,9 +79,11 @@ function ResultsDetail() {
       value={result.error ? { error: result.error, retry: result.reload } : undefined}
     >
       <div className="course-workspace">
-        <div className="breadcrumb">
-          <Link to="/results">All course results</Link>
-        </div>
+        {!fixedId && !!offeringId && (
+          <div className="breadcrumb">
+            <Link to="/results">All course results</Link>
+          </div>
+        )}
         <PageHeader title={teacher ? 'Class gradebook' : 'My results'} />
         {!teacher && !result.error && view?.rows.items[0] && (
           <Panel title="Overall result" icon="publish-small">
@@ -119,23 +130,26 @@ function ResultsDetail() {
           }
         >
           <div className="filters">
-            <Select
-              label="Course section"
-              value={offeringId || ''}
-              onChange={(e) => filter('offeringId', e.target.value)}
-            >
-              <option value="">Select course section</option>
-              {sections.data?.items
-                .filter((v) => v.permissions.academic)
-                .map((v) => (
-                  <option key={v.offering.id} value={v.offering.id}>
-                    {v.offering.courseCode} · {v.offering.sectionCode} · {v.offering.semester}
-                  </option>
-                ))}
-            </Select>
+            {!fixedId && (
+              <Select
+                label="Course section"
+                value={offeringId || ''}
+                onChange={(e) => filter('offeringId', e.target.value)}
+              >
+                <option value="">Select course section</option>
+                {sections.data?.items
+                  .filter((v) => v.permissions.academic)
+                  .map((v) => (
+                    <option key={v.offering.id} value={v.offering.id}>
+                      {v.offering.courseCode} · {v.offering.sectionCode} · {v.offering.semester}
+                    </option>
+                  ))}
+              </Select>
+            )}
             {teacher && (
               <Field
                 label="Search students"
+                maxLength={200}
                 value={search}
                 onChange={(e) => filter('search', e.target.value)}
               />
@@ -202,28 +216,59 @@ function ResultsDetail() {
                             render: (r: import('@/services/assessment-contracts').ResultRow) => {
                               const c = r.cells.find(
                                 (c) => c.activityId === a.activityId && c.kind === a.kind,
-                              )!
+                              )
+                              if (!c) return '—'
+                              const stateLabel =
+                                (
+                                  {
+                                    NOT_SUBMITTED: 'Not submitted',
+                                    NOT_STARTED: 'Not started',
+                                    IN_PROGRESS: 'In progress',
+                                    WAITING_FOR_CLOSE: 'Waiting for quiz close',
+                                    WAITING_FOR_RESTORE: 'Waiting for course restore',
+                                    PROCESSING: 'Processing',
+                                    GRADING_ERROR: 'Grading error',
+                                    SUBMITTED: 'Submitted',
+                                    DRAFT: 'Private draft',
+                                    PUBLISHED: 'Published',
+                                    CORRECTION_DRAFT: 'Published · Correction draft',
+                                  } as Record<string, string>
+                                )[c.state] ?? c.state
                               return (
                                 <>
                                   {c.kind === 'ASSIGNMENT' ? (
                                     <Link
-                                      to={`/assignments/${a.activityId}${teacher ? '/grading' : ''}`}
+                                      to={`${prefix}/assignments/${a.activityId}${teacher ? '/grading' : ''}`}
                                     >
-                                      {c.score === null ? c.state : `${c.score} / ${c.maxScore}`}
+                                      {c.score === null
+                                        ? stateLabel
+                                        : c.specialCode === 11
+                                          ? 'Absent (11)'
+                                          : c.specialCode === 12
+                                            ? 'Banned (12)'
+                                            : `${c.score} / ${c.maxScore}`}
                                     </Link>
                                   ) : c.score === null ? (
-                                    c.state
+                                    stateLabel
+                                  ) : c.specialCode === 11 ? (
+                                    'Absent (11)'
+                                  ) : c.specialCode === 12 ? (
+                                    'Banned (12)'
                                   ) : (
                                     `${c.score} / ${c.maxScore}`
                                   )}
-                                  <small>{c.score !== null ? c.state : null}</small>
+                                  <small>{c.score !== null ? stateLabel : null}</small>
                                   <small>
                                     {c.contribution === null
                                       ? 'Unavailable'
                                       : `${c.contribution} / 10 contribution`}
                                   </small>
                                   <small>
-                                    {c.complete ? 'Activity completed' : 'Activity not completed'}
+                                    {c.isMissingZero
+                                      ? 'Not submitted · Reasoned zero'
+                                      : c.complete
+                                        ? 'Activity completed'
+                                        : 'Activity not completed'}
                                   </small>
                                 </>
                               )

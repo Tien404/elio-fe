@@ -1,14 +1,18 @@
+import { useOffering } from '@/pages/workspace/offering-context'
+import { useOfferingRoute } from '@/services/use-offering-route'
 import { ActionButton as Button } from '@/components/workspace/WorkspaceUI'
 import { useCallback, useState } from 'react'
 import { Link, useSearchParams, useNavigate } from 'react-router'
 import { DataTable, Field, Panel, PageHeader, EmptyState } from '@/components/ui'
 import { Badge, LoadState, Pager, Select } from '@/components/workspace/WorkspaceUI'
 import { AssignmentEditor } from '@/components/assessment/AssignmentEditor'
-import { services, apiMode } from '@/services'
+import { services } from '@/services'
 import { useResource } from '@/services/use-resource'
 import { useAuth } from '@/services/auth-context'
 import { formatInstant } from '@/services/presentation'
-export function Assignments({ offeringId: fixedId }: { offeringId?: number }) {
+export function Assignments() {
+  const { prefix, offeringId: fixedId } = useOfferingRoute()
+  const offering = useOffering()
   const { identity } = useAuth(),
     [params, setParams] = useSearchParams(),
     navigate = useNavigate(),
@@ -26,7 +30,10 @@ export function Assignments({ offeringId: fixedId }: { offeringId?: number }) {
       load,
       `assignments:${identity!.me.account.id}:${offeringId}:${search}:${status}:${mode}:${page}`,
     )
-  const loadSections = useCallback(() => services.courses.list({ pageSize: 100 }), []),
+  const loadSections = useCallback(
+      () => (fixedId ? Promise.resolve(null) : services.courses.list({ pageSize: 100 })),
+      [fixedId],
+    ),
     sections = useResource(loadSections, `assignment-sections:${identity!.me.account.id}`)
   function filter(key: string, value: string) {
     setParams((p) => {
@@ -37,7 +44,9 @@ export function Assignments({ offeringId: fixedId }: { offeringId?: number }) {
     })
   }
   const teacher = identity!.me.account.role === 'INSTRUCTOR',
-    writable = sections.data?.items.find((v) => v.offering.id === offeringId)?.permissions.teach
+    writable =
+      offering?.view.permissions.teach ??
+      sections.data?.items.find((v) => v.offering.id === offeringId)?.permissions.teach
   return (
     <div className="course-workspace">
       <PageHeader
@@ -69,7 +78,7 @@ export function Assignments({ offeringId: fixedId }: { offeringId?: number }) {
           <Select label="Mode" value={mode} onChange={(e) => filter('mode', e.target.value)}>
             <option value="">All modes</option>
             <option value="INDIVIDUAL">Individual</option>
-            {!apiMode && <option value="GROUP">Group</option>}
+            <option value="GROUP">Group</option>
           </Select>
           {teacher && (
             <Select
@@ -110,7 +119,9 @@ export function Assignments({ offeringId: fixedId }: { offeringId?: number }) {
                     label: 'Assignment',
                     render: (v) => (
                       <>
-                        <Link to={`/assignments/${v.assignment.id}`}>{v.assignment.title}</Link>
+                        <Link to={`${prefix}/assignments/${v.assignment.id}`}>
+                          {v.assignment.title}
+                        </Link>
                         <small>{v.offeringLabel}</small>
                       </>
                     ),
@@ -163,7 +174,7 @@ export function Assignments({ offeringId: fixedId }: { offeringId?: number }) {
           close={() => setCreate(false)}
           saved={(id) => {
             setCreate(false)
-            navigate(`/assignments/${id}`)
+            navigate(`${prefix}/assignments/${id}`)
           }}
         />
       )}

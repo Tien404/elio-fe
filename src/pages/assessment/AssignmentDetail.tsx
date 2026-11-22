@@ -1,3 +1,4 @@
+import { useOfferingRoute } from '@/services/use-offering-route'
 import { MvpSubmissionReview } from '@/components/assessment/MvpSubmissionReview'
 import { ActionButton as Button } from '@/components/workspace/WorkspaceUI'
 import { useAssignment } from '@/services/use-assignment'
@@ -16,6 +17,8 @@ import { useAuth } from '@/services/auth-context'
 import { formatInstant } from '@/services/presentation'
 import { WorkspaceAccessContext } from '@/services/workspace-access-context'
 export function AssignmentDetail() {
+  const { prefix } = useOfferingRoute()
+  const { identity } = useAuth()
   const result = useAssignment(),
     [edit, setEdit] = useState(false),
     [archive, setArchive] = useState(false),
@@ -64,23 +67,27 @@ export function AssignmentDetail() {
                       </Button>
                     </>
                   )}
-                  {!apiMode && (
-                    <Link
-                      className="button secondary"
-                      to={`/assignments/${view.assignment.id}/grading`}
-                    >
-                      Open grading queue
-                    </Link>
-                  )}
+                  <Link
+                    className="button secondary"
+                    to={`${prefix}/assignments/${view.assignment.id}/grading`}
+                  >
+                    Open grading queue
+                  </Link>
                 </div>
               )}
             </Panel>
-            {apiMode && view.teacher && <MvpSubmissionReview id={view.assignment.id} />}
+            {apiMode && view.teacher && (
+              <MvpSubmissionReview
+                key={view.assignment.id}
+                id={view.assignment.id}
+                mode={view.assignment.mode}
+              />
+            )}
             {!view.teacher && (
               <>
                 {apiMode ? (
                   <MvpSubmissionComposer
-                    key={view.assignment.id}
+                    key={`${identity!.me.account.id}:${view.assignment.id}`}
                     view={view}
                     changed={result.reload}
                   />
@@ -91,7 +98,11 @@ export function AssignmentDetail() {
                     changed={result.reload}
                   />
                 )}
-                <SubmissionHistory id={view.assignment.id} />
+                <SubmissionHistory
+                  id={view.assignment.id}
+                  streamVersion={view.submission?.version}
+                  publishedGradeMaxScore={apiMode ? view.assignment.maxScore : undefined}
+                />
                 {view.ownGrade && (
                   <Panel title="Published grade and feedback" icon="publish-small">
                     <p>
@@ -146,21 +157,50 @@ export function AssignmentDetail() {
     </div>
   )
 }
-export function SubmissionHistory({ id, subjectId }: { id: number; subjectId?: number }) {
+export function SubmissionHistory({
+  id,
+  subjectId,
+  streamVersion,
+  submissionId,
+  publishedGradeMaxScore,
+}: {
+  id: number
+  subjectId?: number
+  streamVersion?: number
+  submissionId?: number
+  publishedGradeMaxScore?: number
+}) {
   const { identity } = useAuth(),
-    load = useCallback(() => services.assessment.stream(id, subjectId), [id, subjectId]),
-    result = useResource(load, `stream:${identity!.me.account.id}:${id}:${subjectId}`)
+    load = useCallback(
+      () => services.assessment.stream(id, subjectId, submissionId),
+      [id, subjectId, submissionId],
+    ),
+    result = useResource(
+      load,
+      `stream:${identity!.me.account.id}:${id}:${subjectId}:${streamVersion}:${submissionId}`,
+    )
+  const published =
+    publishedGradeMaxScore !== undefined ? result.data?.grade?.publishedRevision : null
   return (
     <>
       <LoadState {...result} retry={result.reload} />
       {result.data && (
         <>
-          <Panel title="Submission members" icon="people-small">
+          <Panel
+            title={
+              result.data.submission?.subjectType === 'GROUP'
+                ? 'Frozen submission roster'
+                : 'Submission members'
+            }
+            icon="people-small"
+          >
             <p>
               {result.data.submission?.status === 'NOT_SUBMITTED'
                 ? 'Not submitted · no receipt or activity completion.'
                 : result.data.submission
-                  ? 'These members share this submission.'
+                  ? result.data.submission.subjectType === 'GROUP'
+                    ? 'These group members share every version of this submission.'
+                    : 'These members share this submission.'
                   : 'Members will appear after the first submission.'}
             </p>
             {result.data.recipients.length > 0 && (
@@ -175,6 +215,16 @@ export function SubmissionHistory({ id, subjectId }: { id: number; subjectId?: n
               />
             )}
           </Panel>
+          {published && (
+            <Panel title="Published grade and feedback" icon="publish-small">
+              <p>
+                {published.score} / {publishedGradeMaxScore} · Revision {published.revisionNo}
+                {published.isMissingZero ? ' · Non-submission zero' : ''}
+              </p>
+              <p className="material-body">{published.feedback || 'No feedback.'}</p>
+              {published.isMissingZero && published.zeroReason && <p>{published.zeroReason}</p>}
+            </Panel>
+          )}
           <Panel title="Version history" icon="document-small">
             {!result.data.history.length ? (
               <Status>No submissions yet.</Status>

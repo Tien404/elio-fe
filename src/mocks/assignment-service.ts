@@ -59,7 +59,11 @@ export function assignmentView(a: Assignment): AssignmentView {
     : streamFor(a, a.mode === 'GROUP' ? (group?.id ?? 0) : me.account.id)
   const grade = s.grades.find((g) => g.submissionId === submission?.id)
   return {
-    assignment: a,
+    assignment: {
+      ...a,
+      groupFormation: a.groupFormation ?? 'SELF',
+      maxGroupSize: a.maxGroupSize ?? (a.mode === 'GROUP' ? 4 : null),
+    },
     topicId: m.topicId,
     attachments: s.files.filter((f) => m.fileIds.includes(f.id)),
     mandatory: m.mandatory,
@@ -73,11 +77,6 @@ export function assignmentView(a: Assignment): AssignmentView {
       now() <= Date.parse(a.cutoffAt) &&
       (a.mode === 'INDIVIDUAL' || !!group) &&
       !grade,
-    canGrade:
-      teacher &&
-      offering.status === 'OPEN' &&
-      a.status === 'PUBLISHED' &&
-      now() > Date.parse(a.cutoffAt),
     serverNow: new Date(now()).toISOString(),
     offeringLabel: `${offering.courseCode} · ${offering.sectionCode} · ${offering.semester}`,
     topics: s.workspace.topics.filter((t) => t.offeringId === a.offeringId),
@@ -246,6 +245,8 @@ export const assignmentMethods = {
           title: input.title.trim(),
           instructions: input.instructions,
           mode: input.mode,
+          groupFormation: input.groupFormation ?? 'SELF',
+          maxGroupSize: input.mode === 'GROUP' ? (input.maxGroupSize ?? 4) : null,
           status: input.status,
           openAt: new Date(input.openAt).toISOString(),
           dueAt: new Date(input.dueAt).toISOString(),
@@ -283,7 +284,11 @@ export const assignmentMethods = {
       return page(
         s.groups
           .filter(
-            (g) => g.assignmentId === id && (teacher || g.memberStudentIds.includes(me.account.id)),
+            (g) =>
+              g.assignmentId === id &&
+              (teacher ||
+                a.groupFormation !== 'INSTRUCTOR' ||
+                g.memberStudentIds.includes(me.account.id)),
           )
           .sort((a, b) => a.id - b.id)
           .map(groupView),
@@ -309,7 +314,9 @@ export const assignmentMethods = {
   ) =>
     request(() =>
       commit(() => {
-        const { a, store: s } = assignmentAccess(id, true)
+        const { a, store: s, teacher, me } = assignmentAccess(id)
+        if (!teacher && (groupId !== null || a.groupFormation === 'INSTRUCTOR'))
+          throw new ServiceError(403, 'Your instructor assigns these groups.')
         if (a.mode !== 'GROUP' || a.status === 'ARCHIVED')
           throw new ServiceError(409, 'An editable group assignment is required.')
         const g = groupId ? s.groups.find((g) => g.id === groupId && g.assignmentId === id) : null
@@ -320,7 +327,8 @@ export const assignmentMethods = {
             throw new ServiceError(409, 'Recipients were finalized. This group is frozen.')
         }
         const name = text(input.name, 'Group name', 120),
-          ids = input.memberStudentIds
+          ids = teacher ? input.memberStudentIds : [me.account.id]
+        if (ids.length > (a.maxGroupSize ?? 20)) throw new ServiceError(422, 'Too many members.')
         if (!ids.length || new Set(ids).size !== ids.length)
           throw new ServiceError(422, 'Select at least one unique assigned student.')
         for (const studentId of ids) {
@@ -379,12 +387,8 @@ function requireListActor() {
   return actor
 }
 export function groupView(group: Group): GroupView {
-  const stream = streamFor(assignmentAccess(group.assignmentId).a, group.id)
   return {
     group,
     members: group.memberStudentIds.map(account),
-    frozenRecipients: group.lockedAt
-      ? (stream?.recipientStudentIds ?? group.memberStudentIds).map(account)
-      : [],
   }
 }

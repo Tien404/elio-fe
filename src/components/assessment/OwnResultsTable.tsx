@@ -1,9 +1,11 @@
+import { useOfferingRoute } from '@/services/use-offering-route'
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { DataTable, Status } from '@/components/ui'
 import { Pager } from '@/components/workspace/WorkspaceUI'
 import type { ResultRow } from '@/services/assessment-contracts'
 export function OwnResultsTable({ row, activityId }: { row: ResultRow; activityId?: number }) {
+  const { prefix } = useOfferingRoute()
   const [page, setPage] = useState(1),
     cells = row.cells.filter((c) => !activityId || c.activityId === activityId),
     totalPages = Math.ceil(cells.length / 25)
@@ -17,9 +19,9 @@ export function OwnResultsTable({ row, activityId }: { row: ResultRow; activityI
             label: 'Activity',
             render: (c) =>
               c.kind === 'ASSIGNMENT' ? (
-                <Link to={`/assignments/${c.activityId}`}>{c.title}</Link>
+                <Link to={`${prefix}/assignments/${c.activityId}`}>{c.title}</Link>
               ) : (
-                <Link to={`/quizzes/${c.activityId}`}>{c.title}</Link>
+                <Link to={`${prefix}/quizzes/${c.activityId}`}>{c.title}</Link>
               ),
           },
           { label: 'Weight', render: (c) => `${c.weight}%` },

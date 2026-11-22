@@ -5,7 +5,7 @@ import { FileList } from './Files'
 import { getMvpSubmissions, getMvpSubmissionHistory } from '@/services'
 import { useResource } from '@/services/use-resource'
 import { formatInstant } from '@/services/presentation'
-export function MvpSubmissionReview({ id }: { id: number }) {
+export function MvpSubmissionReview({ id, mode }: { id: number; mode: 'INDIVIDUAL' | 'GROUP' }) {
   const [page, setPage] = useState(1),
     [selected, setSelected] = useState(0)
   const load = useCallback(() => getMvpSubmissions(id, page), [id, page])
@@ -16,15 +16,18 @@ export function MvpSubmissionReview({ id }: { id: number }) {
   )
   const detail = useResource(historyLoad, `mvp-history:${selected}`)
   return (
-    <Panel title="Student submissions" icon="document-small">
+    <Panel
+      title={mode === 'GROUP' ? 'Group submissions' : 'Student submissions'}
+      icon="document-small"
+    >
       <LoadState {...list} retry={list.reload} />
       {list.data && (
         <>
           {!list.data.items.length && <p>No submissions yet.</p>}
           {list.data.items.map((s) => (
             <p key={s.id}>
-              Student {s.subjectId} · Version {s.version} ·{' '}
-              {s.currentVersion?.isLate ? 'Late' : 'On time'}{' '}
+              {s.subjectType === 'GROUP' ? 'Group' : 'Student'} {s.subjectId} · Version {s.version}{' '}
+              · {s.currentVersion?.isLate ? 'Late' : 'On time'}{' '}
               <ActionButton tone="secondary" onClick={() => setSelected(s.id)}>
                 View files and history
               </ActionButton>
@@ -34,6 +37,18 @@ export function MvpSubmissionReview({ id }: { id: number }) {
         </>
       )}
       <LoadState {...detail} retry={detail.reload} />
+      {detail.data?.submission?.subjectType === 'GROUP' && (
+        <>
+          <h3>Frozen submission roster</h3>
+          <ul>
+            {detail.data.recipients.map((student) => (
+              <li key={student.id}>
+                {student.displayName} · {student.id}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
       {detail.data?.history.map((v) => (
         <details key={v.versionNo}>
           <summary>

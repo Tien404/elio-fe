@@ -2,7 +2,8 @@ import { ActionButton as Button } from '@/components/workspace/WorkspaceUI'
 import { useState } from 'react'
 import { Dialog, Field, Status } from '@/components/ui'
 import { Feedback } from '@/components/workspace/WorkspaceUI'
-import { services } from '@/services'
+import { apiMode, services } from '@/services'
+import { mustReview } from '@/services/errors'
 import { useAction } from '@/services/use-action'
 import type { GradebookView } from '@/services/assessment-contracts'
 export function WeightsDialog({
@@ -19,13 +20,22 @@ export function WeightsDialog({
       view.activities.map((a) => ({ id: a.activityId, kind: a.kind, weight: a.weight })),
     ),
     action = useAction(),
-    total = values.reduce((s, v) => s + v.weight, 0)
+    total = values.reduce((s, v) => s + Math.round(v.weight * 100), 0) / 100,
+    valid =
+      values.length > 0 &&
+      values.every(
+        ({ weight }) =>
+          weight >= 0 &&
+          weight <= 100 &&
+          Math.abs(weight * 100 - Math.round(weight * 100)) < 0.000001,
+      ) &&
+      (!apiMode || total === 100)
   return (
     <Dialog title="Activity weights" close={close}>
-      <Feedback action={action} />
+      <Feedback action={action} review={close} />
       <Status>
-        Total weight: {total}%. A total other than 100% is saved as provisional. Missing results are
-        never normalized.
+        Total weight: {total}%.{' '}
+        {apiMode ? 'The total must be 100%.' : 'Other totals are saved as provisional.'}
       </Status>
       {snapshot.activities.map((a, i) => (
         <Field
@@ -49,7 +59,7 @@ export function WeightsDialog({
         </Button>
         <Button
           icon="complete-white"
-          disabled={action.pending}
+          disabled={action.pending || !valid || mustReview(action.error)}
           onClick={() =>
             void action.run(
               () => services.assessment.weights(offeringId, values, snapshot.version),

@@ -1,12 +1,22 @@
+import { OfferingCard } from '@/components/workspace/OfferingCard'
 import { Link } from 'react-router'
 import { Panel, Status, Icon } from '@/components/ui'
+import { apiMode } from '@/services'
 import { formatActivityReason } from '@/services/presentation'
 import type { services } from '@/services'
 type View = Awaited<ReturnType<typeof services.personal.dashboard>>
 const metrics = [
   { label: 'Course sections', icon: 'metric-courses', detail: 'Open sections' },
-  { label: 'Missing submissions', icon: 'metric-assignments', detail: 'Required assignments' },
-  { label: 'Quizzes to complete', icon: 'metric-quizzes', detail: 'Required quizzes' },
+  {
+    label: 'Missing submissions',
+    icon: 'metric-assignments',
+    detail: apiMode ? 'Open submission windows' : 'Required assignments',
+  },
+  {
+    label: 'Quizzes to complete',
+    icon: 'metric-quizzes',
+    detail: apiMode ? 'Available attempts' : 'Required quizzes',
+  },
   { label: 'Required progress', icon: 'metric-progress', detail: 'Activity completion' },
 ]
 export function StudentOverview({ view }: { view: View }) {
@@ -34,17 +44,12 @@ export function StudentOverview({ view }: { view: View }) {
             {view.sections.map((o) => {
               const progress = view.progress.find((p) => p.offeringId === o.id)
               return (
-                <Link className="dashboard-course" key={o.id} to={`/offerings/${o.id}`}>
-                  <div className="course-cover">
-                    <img src="/assets/course-cover.png" alt="" />
-                  </div>
-                  <small>
-                    {o.semester} · {o.courseCode} · {o.sectionCode} · {o.status}
-                  </small>
-                  <h3>{o.title}</h3>
+                <OfferingCard key={o.id} offering={o}>
                   {progress?.percent != null ? (
                     <>
-                      <p>{progress.percent}% complete</p>
+                      <span className="course-completion">
+                        {progress.completed} / {progress.total} required · {progress.percent}%
+                      </span>
                       <progress
                         aria-label={`${o.title} required progress`}
                         value={progress.completed}
@@ -52,9 +57,9 @@ export function StudentOverview({ view }: { view: View }) {
                       />
                     </>
                   ) : (
-                    <p>No required activities</p>
+                    <span className="course-completion">No required activities</span>
                   )}
-                </Link>
+                </OfferingCard>
               )
             })}
           </div>
@@ -114,11 +119,15 @@ export function StudentOverview({ view }: { view: View }) {
               {view.progress.reduce((n, r) => n + r.completed, 0)} /{' '}
               {view.progress.reduce((n, r) => n + r.total, 0)} required activities completed
             </p>
-            <progress
-              aria-label="Overall required progress"
-              value={view.progress.reduce((n, r) => n + r.completed, 0)}
-              max={view.progress.reduce((n, r) => n + r.total, 0) || 1}
-            />
+            {view.metrics[3] === null ? (
+              <p>No required activities.</p>
+            ) : (
+              <progress
+                aria-label="Overall required progress"
+                value={view.progress.reduce((n, r) => n + r.completed, 0)}
+                max={view.progress.reduce((n, r) => n + r.total, 0)}
+              />
+            )}
           </div>
           <div className="actions panel-footer-actions">
             <Link className="button secondary" to="/notifications">

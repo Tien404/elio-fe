@@ -1,7 +1,8 @@
 import { Link } from 'react-router'
 import { Icon, NavigationButton } from '@/components/ui'
 import type { CalendarItem } from '@/services/contracts'
-import { calendarDate, shiftCalendarMonth } from '@/services/calendar-view'
+import { calendarDate, calendarKindLabel, shiftCalendarMonth } from '@/services/calendar-view'
+import { formatVietnamTime } from '@/services/presentation'
 export function CalendarMonth({
   anchor,
   events,
@@ -77,7 +78,8 @@ export function CalendarMonth({
                           <div className="calendar-event-links">
                             {dayEvents.map((e) => (
                               <Link key={e.id} to={e.targetUri}>
-                                {e.title}
+                                {formatVietnamTime(e.at)} · {e.title}
+                                {e.kind !== 'ASSIGNMENT_DUE' && ` · ${calendarKindLabel[e.kind]}`}
                               </Link>
                             ))}
                           </div>
@@ -115,7 +117,10 @@ export function CalendarMonth({
                     </span>
                     <div className="resource-copy">
                       <Link to={event.targetUri}>{event.title}</Link>
-                      <p>{event.kind === 'ASSIGNMENT_DUE' ? 'Assignment' : 'Quiz'}</p>
+                      <p>
+                        {formatVietnamTime(event.at)} ·{' '}
+                        {event.type ?? calendarKindLabel[event.kind]}
+                      </p>
                     </div>
                   </div>
                 ))}

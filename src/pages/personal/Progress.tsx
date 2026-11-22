@@ -9,6 +9,9 @@ import { useAuth } from '@/services/auth-context'
 import { useResource } from '@/services/use-resource'
 export function Progress() {
   const [params] = useSearchParams()
+  const { identity } = useAuth()
+  if (identity!.me.account.role === 'ADMIN')
+    return <Status error>Academic access is required to view progress.</Status>
   return Number(params.get('offeringId')) > 0 ? (
     <ProgressDetail />
   ) : (
@@ -55,11 +58,13 @@ function ProgressDetail() {
             onChange={(e) => filter('offeringId', e.target.value)}
           >
             <option value="">Choose a section</option>
-            {sections.data?.items.map(({ offering: o }) => (
-              <option value={o.id} key={o.id}>
-                {o.courseCode} · {o.sectionCode} · {o.semester}
-              </option>
-            ))}
+            {sections.data?.items
+              .filter((section) => section.permissions.academic)
+              .map(({ offering: o }) => (
+                <option value={o.id} key={o.id}>
+                  {o.courseCode} · {o.sectionCode} · {o.semester}
+                </option>
+              ))}
           </Select>
           {teacher && (
             <>
@@ -74,6 +79,7 @@ function ProgressDetail() {
               </Select>
               <Field
                 label="Search student"
+                maxLength={200}
                 value={search}
                 onChange={(e) => filter('search', e.target.value)}
               />
@@ -135,11 +141,13 @@ function ProgressDetail() {
               <p>
                 {selected.completed} of {selected.total} required activities completed
               </p>
-              <progress
-                aria-label="Required activity completion"
-                value={selected.completed}
-                max={selected.total || 1}
-              />
+              {selected.total > 0 && (
+                <progress
+                  aria-label="Required activity completion"
+                  value={selected.completed}
+                  max={selected.total}
+                />
+              )}
             </div>
           </div>
         )}
@@ -150,7 +158,7 @@ function ProgressDetail() {
           <p>
             {selected.displayName} · {selected.completed} / {selected.total}
           </p>
-          {selected.percent === null && (
+          {(selected.notice === 'NO_MANDATORY_ACTIVITIES' || selected.total === 0) && (
             <Status>
               No published mandatory activities. A completion percentage is unavailable.
             </Status>

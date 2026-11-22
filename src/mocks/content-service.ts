@@ -259,11 +259,24 @@ export const mockContent: ContentService = {
         .sort((a, b) => b.id - a.id)
       return page(rows, query, preset === 'empty')
     }),
+  announcement: (id) => request(() => announcementView(id)),
+  async publishAnnouncement(id, expectedVersion) {
+    const item = await mockContent.announcement(id)
+    return mockContent.saveAnnouncement(
+      item.offeringId,
+      id,
+      { title: item.title, body: item.body },
+      true,
+      expectedVersion,
+    )
+  },
   saveAnnouncement: (offeringId, id, input, publish, expectedVersion) =>
     request(() =>
       commit(() => {
         const a = requireAcademic(offeringId, true),
           s = a.store
+        if (publish && a.offering.status !== 'OPEN')
+          throw new ServiceError(409, 'Announcements can be published in an open class.')
         let record =
           id === null
             ? undefined

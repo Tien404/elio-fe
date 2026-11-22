@@ -6,7 +6,12 @@ import { Badge, LoadState, Pager, Select } from '@/components/workspace/Workspac
 import { services } from '@/services'
 import { useResource } from '@/services/use-resource'
 import { formatInstant } from '@/services/presentation'
-import { calendarDate, validCalendarDate, loadCalendarMonth } from '@/services/calendar-view'
+import {
+  calendarDate,
+  validCalendarDate,
+  loadCalendarMonth,
+  calendarKindLabel,
+} from '@/services/calendar-view'
 export function Calendar() {
   const [params, setParams] = useSearchParams(),
     from = params.get('from') ?? '',
@@ -114,7 +119,8 @@ export function Calendar() {
           >
             <option value="ALL">All activities</option>
             <option value="ASSIGNMENT_DUE">Assignment due</option>
-            <option value="QUIZ_CLOSE">Quiz close</option>
+            <option value="QUIZ_OPEN">Quiz opens</option>
+            <option value="QUIZ_CLOSE">Quiz closes</option>
           </Select>
           <Select
             label="Course section"
@@ -136,7 +142,7 @@ export function Calendar() {
             {display === 'calendar' ? (
               <CalendarMonth
                 anchor={selectedDate}
-                today={today}
+                today={calendarDate(r.data.serverNow)}
                 events={r.data.items}
                 change={chooseDate}
               />
@@ -152,9 +158,9 @@ export function Calendar() {
                   },
                   {
                     label: 'Type',
-                    render: (e) => e.type,
+                    render: (e) => e.type ?? calendarKindLabel[e.kind],
                   },
-                  { label: 'Time', render: (e) => formatInstant(e.at) },
+                  { label: 'Time (Vietnam)', render: (e) => formatInstant(e.at) },
                   { label: 'Status', render: (e) => <Badge value={e.status} /> },
                 ]}
               />

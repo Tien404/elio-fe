@@ -4,7 +4,7 @@ import { getStore, commit, now } from './store'
 import { request } from './scenarios'
 import { page, requireAcademic, matches, activeLead } from './policy'
 import { scopedOfferings, progressRows, calendarRows, safeTarget } from './projections'
-import type { Notification, PersonalQuery } from '@/services/personal-contracts'
+import type { Notification, PersonalQuery, PersonalService } from '@/services/personal-contracts'
 import { ServiceError } from '@/services/errors'
 
 function notificationRows(): (Notification & { href: string | null })[] {
@@ -43,7 +43,7 @@ function notificationRows(): (Notification & { href: string | null })[] {
       }
     })
 }
-export const mockPersonal = {
+export const mockPersonal: PersonalService = {
   summary: () =>
     request(() => ({
       unread: notificationRows().filter((n) => n.status === 'UNREAD').length,
@@ -90,6 +90,7 @@ export const mockPersonal = {
               })),
           ],
           announcements: [],
+          upcoming: [],
           unread: notifications.filter((n) => n.status === 'UNREAD').length,
         }
       const progress = sections.flatMap((o) => progressRows(o.id)),
@@ -184,6 +185,9 @@ export const mockPersonal = {
                 notifications.filter((n) => n.status === 'UNREAD').length,
               ],
         progress: own,
+        upcoming: calendarRows().filter(
+          (event) => Date.parse(event.at) >= now() && Date.parse(event.at) < now() + 7 * 86_400_000,
+        ),
         tasks,
         announcements: s.workspace.announcements
           .filter((a) => sections.some((o) => o.id === a.offeringId) && a.published)
@@ -223,9 +227,9 @@ export const mockPersonal = {
           s.personal.read.push({ recipientId, notificationId: id })
       }),
     ),
-  destination: (id: number) =>
+  destination: (notification) =>
     request(() => {
-      const n = notificationRows().find((n) => n.id === id)
+      const n = notificationRows().find((n) => n.id === notification.id)
       if (!n) throw new ServiceError(404, 'Notification not found.')
       return { href: n.href }
     }),
@@ -257,6 +261,19 @@ export const mockPersonal = {
         ),
       }
     }),
+  ownProgress: (query = {}) =>
+    request((preset) => {
+      if (current().me.account.role !== 'STUDENT')
+        throw new ServiceError(403, 'Student access is required.')
+      return {
+        teacher: false,
+        rows: page(
+          scopedOfferings().flatMap((offering) => progressRows(offering.id)),
+          query,
+          preset === 'empty',
+        ),
+      }
+    }),
   progress: (id: number, q: PersonalQuery = {}) =>
     request((p) => {
       const { teacher } = requireAcademic(id)
@@ -278,4 +295,3 @@ export const mockPersonal = {
       }
     }),
 }
-export type PersonalService = typeof mockPersonal

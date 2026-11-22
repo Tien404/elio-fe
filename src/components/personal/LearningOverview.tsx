@@ -10,7 +10,7 @@ export function LearningOverview({ mode }: { mode: LearningOverviewMode }) {
   const { identity } = useAuth()
   const teacher = identity!.me.account.role === 'INSTRUCTOR'
   const [search, setSearch] = useState('')
-  const load = useCallback(() => loadLearningOverview(mode), [mode])
+  const load = useCallback(() => loadLearningOverview(mode, teacher), [mode, teacher])
   const result = useResource(load, `learning-overview:${identity!.me.account.id}:${mode}`)
   const courses = result.data ?? []
   const progressRows = courses.flatMap((course) => course.progress ?? [])

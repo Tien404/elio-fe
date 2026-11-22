@@ -5,6 +5,7 @@ export function personalState() {
       id: number
       actorId: number
       action: string
+      targetKind?: string
       targetId: number
       reason: string
       occurredAt: string

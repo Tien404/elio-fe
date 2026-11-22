@@ -36,6 +36,7 @@ export function Inbox() {
         <div className="filters">
           <Field
             label="Search notifications"
+            maxLength={200}
             value={search}
             onChange={(e) => filter('search', e.target.value)}
           />
@@ -93,7 +94,13 @@ export function Inbox() {
                         onClick={() =>
                           void action.run(
                             () => services.personal.read(notification.id),
-                            undefined,
+                            () => {
+                              if (state === 'UNREAD' && page > 1 && r.data?.rows.items.length === 1)
+                                setParams((current) => {
+                                  current.set('page', String(page - 1))
+                                  return current
+                                })
+                            },
                             'Marked as read.',
                           )
                         }
@@ -106,7 +113,7 @@ export function Inbox() {
                       disabled={action.pending}
                       onClick={() =>
                         void action.run(
-                          () => services.personal.destination(notification.id),
+                          () => services.personal.destination(notification),
                           (destination) => {
                             if (destination.href) navigate(destination.href)
                             else setUnavailable(true)

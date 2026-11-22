@@ -1,5 +1,10 @@
 import type { FileAsset, FileService, Resource } from '@/services/contracts'
-import type { ContentService, MaterialView, Topic } from '@/services/course-contracts'
+import type {
+  ContentService,
+  MaterialView,
+  Topic,
+  AnnouncementView,
+} from '@/services/course-contracts'
 import { allPages, localPage, matches } from './courses'
 import { http, json, unsupported } from './http'
 
@@ -65,6 +70,42 @@ export const apiContent: ContentService = {
     await http(`/resources/${id}/completion`, { method: 'DELETE' })
     return apiContent.material(id)
   },
-  announcements: unsupported,
-  saveAnnouncement: unsupported,
+  async announcements(id, query = {}) {
+    const rows = await allPages<MainAnnouncement>(`/offerings/${id}/announcements`)
+    return localPage(
+      rows.filter((r) => matches(query.search, r.title)).map(announcementView),
+      query,
+    )
+  },
+  announcement: async (id) =>
+    announcementView(await http<MainAnnouncement>(`/announcements/${id}`)),
+  publishAnnouncement: async () => {
+    throw new Error('Announcements are published when posted.')
+  },
+  async saveAnnouncement(offeringId, id, input) {
+    if (id !== null) throw new Error('Posted announcements cannot be edited.')
+    return announcementView(
+      await http<MainAnnouncement>(`/offerings/${offeringId}/announcements`, json('POST', input)),
+    )
+  },
+}
+interface MainAnnouncement {
+  id: number
+  offeringId: number
+  title: string
+  body: string
+  author: { id: number }
+  publishedAt: string
+}
+function announcementView(row: MainAnnouncement): AnnouncementView {
+  return {
+    id: row.id,
+    offeringId: row.offeringId,
+    title: row.title,
+    body: row.body,
+    status: 'PUBLISHED',
+    publishedAt: row.publishedAt,
+    version: 1,
+    hasUnpublishedChanges: false,
+  }
 }

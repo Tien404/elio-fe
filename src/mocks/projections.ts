@@ -152,7 +152,7 @@ export function calendarRows(): (CalendarItem & {
     })
   const quizzes = s.quizzes
     .filter((q) => visible(q.offeringId, q.status))
-    .map((q) => {
+    .flatMap((q) => {
       const attempt =
         me.role === 'STUDENT'
           ? s.quizEngine.attempts.find((a) => a.quizId === q.id && a.studentId === me.id)
@@ -166,8 +166,8 @@ export function calendarRows(): (CalendarItem & {
         else if (attempt) status = 'In progress'
         else status = 'Not started'
       }
-      return {
-        id: `quiz-${q.id}`,
+      const close = {
+        id: `quiz-close-${q.id}`,
         offeringId: q.offeringId,
         section: section.get(q.offeringId)!,
         kind: 'QUIZ_CLOSE' as const,
@@ -177,6 +177,16 @@ export function calendarRows(): (CalendarItem & {
         targetUri: `/quizzes/${q.id}`,
         status,
       }
+      return [
+        {
+          ...close,
+          id: `quiz-open-${q.id}`,
+          kind: 'QUIZ_OPEN' as const,
+          type: 'Quiz open',
+          at: q.openAt,
+        },
+        close,
+      ]
     })
   return [...assignments, ...quizzes].sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
 }

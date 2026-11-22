@@ -1,19 +1,24 @@
+import { apiMode } from '@/services'
 import { useEffect, useId, useState, type FormEvent } from 'react'
 import { Button, Dialog, Field } from '@/components/ui'
 import { ActionButton, Feedback, TextArea } from '@/components/workspace/WorkspaceUI'
 import type { AnnouncementView } from '@/services/course-contracts'
 import { services } from '@/services'
+import { mustReview } from '@/services/errors'
 import { useAction } from '@/services/use-action'
 
 export function AnnouncementEditor({
   offeringId,
   saved,
+  canPublish,
   close,
 }: {
   offeringId: number
   saved?: AnnouncementView
+  canPublish: boolean
   close(): void
 }) {
+  const [snapshot, setSnapshot] = useState(saved)
   const [title, setTitle] = useState(saved?.title ?? ''),
     [body, setBody] = useState(saved?.body ?? ''),
     [preview, setPreview] = useState(false),
@@ -25,15 +30,16 @@ export function AnnouncementEditor({
   function submit(event: FormEvent) {
     event.preventDefault()
     const publish =
-      (event.nativeEvent as SubmitEvent).submitter?.getAttribute('value') === 'publish'
+      apiMode || (event.nativeEvent as SubmitEvent).submitter?.getAttribute('value') === 'publish'
+    if (action.pending || mustReview(action.error) || (publish && !canPublish)) return
     void action.run(
       () =>
         services.content.saveAnnouncement(
           offeringId,
-          saved?.id ?? null,
+          snapshot?.id ?? null,
           { title, body },
           publish,
-          saved?.version,
+          snapshot?.version,
         ),
       close,
     )
@@ -55,7 +61,22 @@ export function AnnouncementEditor({
         </div>
       ) : (
         <form onSubmit={submit}>
-          <Feedback action={action} />
+          <Feedback
+            action={action}
+            review={
+              snapshot
+                ? () =>
+                    void action.run(
+                      () => services.content.announcement(snapshot.id),
+                      (fresh) => {
+                        setSnapshot(fresh)
+                        setTitle(fresh.title)
+                        setBody(fresh.body)
+                      },
+                    )
+                : undefined
+            }
+          />
           <Field
             id={`${focusId}-title`}
             label="Title"
@@ -71,16 +92,10 @@ export function AnnouncementEditor({
             value={body}
             onChange={(e) => setBody(e.target.value)}
           />
-          {saved?.status === 'PUBLISHED' && (
+          {snapshot?.status === 'PUBLISHED' && (
             <p className="form-description">
               Draft changes stay private to instructors. Students keep seeing the previously
               published announcement until you publish again.
-            </p>
-          )}
-          {action.error && (
-            <p className="form-description">
-              Input is kept. For a version conflict, cancel and review the latest announcement
-              before opening another editor.
             </p>
           )}
           <div className="actions">
@@ -92,15 +107,17 @@ export function AnnouncementEditor({
             >
               Cancel
             </ActionButton>
-            <ActionButton
-              tone="secondary"
-              icon="save-dark"
-              type="submit"
-              value="draft"
-              disabled={action.pending}
-            >
-              {action.pending ? 'Saving…' : 'Save draft'}
-            </ActionButton>
+            {!apiMode && (
+              <ActionButton
+                tone="secondary"
+                icon="save-dark"
+                type="submit"
+                value="draft"
+                disabled={action.pending || mustReview(action.error)}
+              >
+                {action.pending ? 'Saving…' : 'Save draft'}
+              </ActionButton>
+            )}
             <ActionButton
               tone="secondary"
               icon="preview"
@@ -109,14 +126,16 @@ export function AnnouncementEditor({
             >
               Preview
             </ActionButton>
-            <ActionButton
-              icon="publish-small"
-              type="submit"
-              value="publish"
-              disabled={action.pending}
-            >
-              {action.pending ? 'Saving…' : 'Publish'}
-            </ActionButton>
+            {canPublish && (
+              <ActionButton
+                icon="publish-small"
+                type="submit"
+                value="publish"
+                disabled={action.pending || mustReview(action.error)}
+              >
+                {action.pending ? 'Saving…' : 'Publish'}
+              </ActionButton>
+            )}
           </div>
         </form>
       )}

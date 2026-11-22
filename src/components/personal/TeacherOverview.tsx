@@ -3,8 +3,10 @@ import { DataTable, Panel, Status } from '@/components/ui'
 import type { services } from '@/services'
 type View = Awaited<ReturnType<typeof services.personal.dashboard>>
 export function TeacherOverview({ view }: { view: View }) {
-  const grading = view.tasks.filter((t) => t.id.startsWith('grading-')),
-    activities = view.tasks.filter((t) => !t.id.startsWith('grading-'))
+  const isGrading = (task: View['tasks'][number]) =>
+    task.kind === 'GRADE_ASSIGNMENT' || task.id.startsWith('grading-')
+  const grading = view.tasks.filter(isGrading)
+  const activities = view.tasks.filter((task) => !isGrading(task))
   return (
     <>
       <div className="dashboard-grid">

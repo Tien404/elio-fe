@@ -191,13 +191,6 @@ export function Shell() {
           </form>
           <div className="header-actions">
             <Link
-              className="semester"
-              to={me.account.role === 'ADMIN' ? '/offerings' : '/calendar'}
-            >
-              <Icon name="semester" />
-              {summary.data?.semesters.length === 1 ? summary.data.semesters[0] : 'All terms'}
-            </Link>
-            <Link
               className="icon-button"
               to="/notifications"
               aria-label={`Notifications${summary.data ? ` · ${summary.data.unread} unread` : ''}`}

@@ -103,7 +103,7 @@ export function Profile() {
           </form>
         </Panel>
         <Panel title="Account information" icon="people">
-          <p>{me.account.role.toLowerCase()} account · Managed by your institution.</p>
+          <p>{me.account.role.toUpperCase()} account</p>
           <div className="actions">
             <Link className="button secondary" to="/change-password">
               <Icon name="lock" size={20} inheritColor />

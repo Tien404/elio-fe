@@ -139,7 +139,7 @@ export const pages: PageRoute[] = [
   },
   {
     path: '/admin',
-    title: 'Account administration',
+    title: 'Account',
     family: 'S17',
     stage: 'FE04',
     icon: 'people',

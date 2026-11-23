@@ -264,10 +264,12 @@ export function DataTable<T>({
   rows,
   columns,
   rowKey,
+  className = '',
 }: {
   rows: T[]
   columns: { label: string; render(row: T): ReactNode }[]
   rowKey(row: T): string | number
+  className?: string
 }) {
   return (
     <div
@@ -276,7 +278,7 @@ export function DataTable<T>({
       role="region"
       aria-label="Data table"
     >
-      <table className="responsive-table" role="table">
+      <table className={`responsive-table ${className}`.trim()} role="table">
         <thead role="rowgroup">
           <tr role="row">
             {columns.map((c) => (

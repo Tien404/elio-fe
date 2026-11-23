@@ -14,9 +14,7 @@ export function TeacherOverview({ view }: { view: View }) {
           <div className="dashboard-courses">
             {view.sections.map((o) => (
               <Link className="dashboard-course" to={`/offerings/${o.id}`} key={o.id}>
-                <div className="course-cover">
-                  <img src="/assets/course-cover.png" alt="" />
-                </div>
+                <div className="course-cover" aria-hidden="true" />
                 <small>
                   {o.semester} · {o.courseCode} · {o.sectionCode}
                 </small>

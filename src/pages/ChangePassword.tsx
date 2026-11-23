@@ -23,7 +23,7 @@ export function ChangePassword() {
     setPending(true)
     try {
       await services.identity.changePassword({ currentPassword, newPassword })
-      auth.signedOut('Password changed. All sessions were revoked. Sign in with your new password.')
+      auth.signedOut('Password changed. Sign in with your new password.')
     } catch (e) {
       setError(errorMessage(e))
     } finally {

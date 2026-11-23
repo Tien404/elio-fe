@@ -25,6 +25,7 @@ export function AccountDialog({
     [capability, setCapability] = useState(account?.canCreateCourse ?? false),
     [reason, setReason] = useState(''),
     [delivery, setDelivery] = useState<CredentialDelivery | null>(null),
+    [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle'),
     action = useAction(),
     labels = {
       create: 'Issue account',
@@ -71,13 +72,29 @@ export function AccountDialog({
         <>
           {delivery.temporaryPassword ? (
             <>
-              <Status>Demo credential shown once.</Status>
+              {/* <Status>
+                Copy this temporary password before closing. It cannot be viewed again here.
+              </Status> */}
               <Field
-                label="Temporary demo password"
+                label="Temporary password"
                 value={delivery.temporaryPassword}
                 readOnly
                 autoComplete="off"
               />
+              <Button
+                tone="secondary"
+                onClick={() => {
+                  void navigator.clipboard.writeText(delivery.temporaryPassword!).then(
+                    () => setCopyState('copied'),
+                    () => setCopyState('failed'),
+                  )
+                }}
+              >
+                {copyState === 'copied' ? 'Copied' : 'Copy password'}
+              </Button>
+              {copyState === 'failed' && (
+                <Status>Could not copy. Select and copy the password above.</Status>
+              )}
             </>
           ) : (
             <Status>

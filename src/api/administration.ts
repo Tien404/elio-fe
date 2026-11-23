@@ -1,4 +1,4 @@
-import type { AdminService } from '@/services/admin-contracts'
+import type { AdminService, CredentialDelivery } from '@/services/admin-contracts'
 import type { MeView } from '@/services/contracts'
 import { allPages, localPage, operationalAudit, pageParams } from './courses'
 import { http, json } from './http'
@@ -22,15 +22,24 @@ export const apiAdmin: AdminService = {
     return http(`/admin/accounts?${params}`)
   },
   async provision(input) {
-    const me = await http<MeView>('/admin/accounts', json('POST', input))
-    return { accountId: me.account.id }
+    const me = await http<MeView & { temporaryPassword: string }>(
+      '/admin/accounts',
+      json('POST', input),
+    )
+    return { accountId: me.account.id, temporaryPassword: me.temporaryPassword }
   },
   update(id, { expectedVersion, ...body }) {
     return http(`/admin/accounts/${id}`, json('PATCH', body, expectedVersion))
   },
   async resetPassword(id, reason) {
-    await http(`/admin/accounts/${id}/password-reset`, json('POST', { reason }))
-    return { accountId: id }
+    const result = await http<{ resourceId: number; temporaryPassword: string }>(
+      `/admin/accounts/${id}/password-reset`,
+      json('POST', { reason }),
+    )
+    return {
+      accountId: result.resourceId,
+      temporaryPassword: result.temporaryPassword,
+    } satisfies CredentialDelivery
   },
   audit(query = {}) {
     const params = pageParams(query)

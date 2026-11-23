@@ -132,6 +132,7 @@ function Administration() {
               {r.data && !r.error && (
                 <>
                   <DataTable
+                    className="admin-accounts-table"
                     rows={r.data.items}
                     rowKey={(a) => a.account.id}
                     columns={[

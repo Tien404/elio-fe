@@ -16,7 +16,6 @@ export function OfferingCard({
     <article className="course-card offering-card">
       <Link className="offering-card-main" to={`/offerings/${offering.id}`}>
         <div className="course-cover">
-          <img src="/assets/course-cover.png" alt="" />
           <div>
             <span>{offering.semester}</span>
             <span>{offering.courseCode}</span>

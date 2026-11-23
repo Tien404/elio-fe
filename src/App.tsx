@@ -1,4 +1,3 @@
-import { apiMode } from '@/services'
 import { Spinner } from '@/components/LoadingBoundary'
 import { lazy, Suspense } from 'react'
 import { Assignments } from '@/pages/assessment/Assignments'
@@ -8,6 +7,7 @@ import { Grading } from '@/pages/assessment/Grading'
 import { Results } from '@/pages/assessment/Results'
 import { Catalog, CatalogDetail } from '@/pages/workspace/Catalog'
 import { Offerings } from '@/pages/workspace/Offerings'
+import { OfferingAcademicAccess } from '@/pages/workspace/OfferingAcademicAccess'
 import { OfferingLayout } from '@/pages/workspace/OfferingLayout'
 import { Overview, Announcements } from '@/pages/workspace/Overview'
 import { Materials } from '@/pages/workspace/Materials'
@@ -80,13 +80,6 @@ function PasswordRoute() {
   const { identity } = useAuth()
   return identity!.session.restricted ? <ChangePassword /> : <Shell />
 }
-function Unsupported() {
-  return (
-    <div className="course-workspace">
-      <h1>Feature unavailable</h1>
-    </div>
-  )
-}
 function App() {
   return (
     <AuthProvider>
@@ -113,38 +106,35 @@ function App() {
                 <Route path="materials/:materialId" element={<Materials />} />
                 <Route path="members" element={<Members />} />
                 <Route path="team" element={<Team />} />
-                <Route
-                  path="announcements"
-                  element={apiMode ? <Unsupported /> : <Announcements />}
-                />
+                <Route element={<OfferingAcademicAccess />}>
+                  <Route path="assignments" element={<Assignments />} />
+                  <Route path="assignments/:assignmentId" element={<AssignmentDetail />} />
+                  <Route path="assignments/:assignmentId/groups" element={<Groups />} />
+                  <Route path="assignments/:assignmentId/grading" element={<Grading />} />
+                  <Route path="results" element={<Results />} />
+                  <Route path="quizzes" element={<Quizzes />} />
+                  <Route path="quizzes/question-bank" element={<QuestionBank />} />
+                  <Route path="quizzes/:quizId" element={<QuizDetail />} />
+                  <Route path="quizzes/:quizId/attempts" element={<QuizAttempts />} />
+                  <Route path="quizzes/attempts/:attemptId" element={<QuizAttempt />} />
+                </Route>
+                <Route path="announcements" element={<Announcements />} />
               </Route>
               <Route path="/assignments" element={<Assignments />} />
               <Route path="/assignments/:assignmentId" element={<AssignmentDetail />} />
-              <Route
-                path="/assignments/:assignmentId/groups"
-                element={apiMode ? <Unsupported /> : <Groups />}
-              />
-              <Route
-                path="/assignments/:assignmentId/grading"
-                element={apiMode ? <Unsupported /> : <Grading />}
-              />
-              <Route path="/results" element={apiMode ? <Unsupported /> : <Results />} />
-              <Route path="/quizzes" element={apiMode ? <Unsupported /> : <Quizzes />} />
-              <Route path="/question-bank" element={apiMode ? <Unsupported /> : <QuestionBank />} />
-              <Route path="/quizzes/:quizId" element={apiMode ? <Unsupported /> : <QuizDetail />} />
-              <Route
-                path="/quizzes/:quizId/attempts"
-                element={apiMode ? <Unsupported /> : <QuizAttempts />}
-              />
-              <Route
-                path="/quiz-attempts/:attemptId"
-                element={apiMode ? <Unsupported /> : <QuizAttempt />}
-              />
+              <Route path="/assignments/:assignmentId/groups" element={<Groups />} />
+              <Route path="/assignments/:assignmentId/grading" element={<Grading />} />
+              <Route path="/results" element={<Results />} />
+              <Route path="/quizzes" element={<Quizzes />} />
+              <Route path="/question-bank" element={<QuestionBank />} />
+              <Route path="/quizzes/:quizId" element={<QuizDetail />} />
+              <Route path="/quizzes/:quizId/attempts" element={<QuizAttempts />} />
+              <Route path="/quiz-attempts/:attemptId" element={<QuizAttempt />} />
               <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/notifications" element={apiMode ? <Unsupported /> : <Inbox />} />
-              <Route path="/calendar" element={apiMode ? <Unsupported /> : <Calendar />} />
-              <Route path="/progress" element={apiMode ? <Unsupported /> : <Progress />} />
-              <Route path="/admin" element={apiMode ? <Unsupported /> : <Admin />} />
+              <Route path="/notifications" element={<Inbox />} />
+              <Route path="/calendar" element={<Calendar />} />
+              <Route path="/progress" element={<Progress />} />
+              <Route path="/admin" element={<Admin />} />
               <Route path="*" element={<NotFound />} />
             </Route>
           </Route>

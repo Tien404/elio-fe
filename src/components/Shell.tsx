@@ -1,4 +1,4 @@
-import { services, apiMode } from '@/services'
+import { services } from '@/services'
 import { useResource } from '@/services/use-resource'
 import { JoinDialog } from '@/components/workspace/JoinDialog'
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
@@ -54,9 +54,9 @@ export function Shell() {
     .filter(
       (p) =>
         !p.path.includes(':') &&
-        !['/courses', '/notifications', '/offerings/new'].includes(p.path) &&
-        canAccess(p, me) &&
-        (!apiMode || ['/dashboard', '/offerings', '/assignments', '/profile'].includes(p.path)),
+        !['/notifications', '/offerings/new'].includes(p.path) &&
+        (p.path !== '/courses' || me.account.role === 'ADMIN') &&
+        canAccess(p, me),
     )
     .sort((a, b) => (a.path === '/calendar' ? 1 : b.path === '/calendar' ? -1 : 0))
   const initials = me.account.displayName
@@ -78,7 +78,13 @@ export function Shell() {
         role={drawerOpen ? 'dialog' : undefined}
         aria-modal={drawerOpen ? true : undefined}
         onKeyDown={(event) => {
-          if (!drawerOpen || event.key !== 'Tab') return
+          if (!drawerOpen) return
+          if (event.key === 'Escape') {
+            event.preventDefault()
+            closeMenu()
+            return
+          }
+          if (event.key !== 'Tab') return
           const items = sidebarRef.current?.querySelectorAll<HTMLElement>(
             'a[href], button:not(:disabled)',
           )
@@ -102,7 +108,7 @@ export function Shell() {
         >
           <Icon name="close" />
         </Button>
-        <Link to="/dashboard" className="brand">
+        <Link to="/dashboard" className="brand" onClick={() => setMenu(false)}>
           <Icon name="mark" size={44} />
           ELIO
         </Link>
@@ -120,12 +126,17 @@ export function Shell() {
               )}
               {page.path === '/calendar' && <p className="nav-label">Connect</p>}
               {page.path === '/quizzes' && location.pathname.startsWith('/quiz-attempts/') ? (
-                <Link to={page.path} className="active" aria-current="page">
+                <Link
+                  to={page.path}
+                  className="active"
+                  aria-current="page"
+                  onClick={() => setMenu(false)}
+                >
                   <Icon name="quiz-nav-active" />
                   Quizzes
                 </Link>
               ) : (
-                <NavLink to={page.path}>
+                <NavLink to={page.path} onClick={() => setMenu(false)}>
                   <Icon
                     name={
                       page.path === '/results' && me.account.role === 'INSTRUCTOR'
@@ -143,7 +154,7 @@ export function Shell() {
             </div>
           ))}
         </nav>
-        <NavLink className="account-card" to="/profile">
+        <NavLink className="account-card" to="/profile" onClick={() => setMenu(false)}>
           <span className="avatar">{initials}</span>
           <span className="account-details">
             <strong>{me.account.displayName}</strong>
@@ -181,23 +192,21 @@ export function Shell() {
           <div className="header-actions">
             <Link
               className="semester"
-              to={apiMode || me.account.role === 'ADMIN' ? '/offerings' : '/calendar'}
+              to={me.account.role === 'ADMIN' ? '/offerings' : '/calendar'}
             >
               <Icon name="semester" />
               {summary.data?.semesters.length === 1 ? summary.data.semesters[0] : 'All terms'}
             </Link>
-            {!apiMode && (
-              <Link
-                className="icon-button"
-                to="/notifications"
-                aria-label={`Notifications${summary.data ? ` · ${summary.data.unread} unread` : ''}`}
-              >
-                <Icon name="notifications" />
-                {!!summary.data?.unread && (
-                  <span className="unread-count">{summary.data.unread}</span>
-                )}
-              </Link>
-            )}
+            <Link
+              className="icon-button"
+              to="/notifications"
+              aria-label={`Notifications${summary.data ? ` · ${summary.data.unread} unread` : ''}`}
+            >
+              <Icon name="notifications" />
+              {!!summary.data?.unread && (
+                <span className="unread-count">{summary.data.unread}</span>
+              )}
+            </Link>
             {me.account.role === 'INSTRUCTOR' && me.canCreateCourse && (
               <Link className="button primary" to="/offerings/new">
                 Create course section

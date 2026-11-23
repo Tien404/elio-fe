@@ -1667,7 +1667,7 @@ textarea {
   margin-bottom: 24px;
 }
 .course-search-control {
-  width: 280px;
+  width: 340px;
 }
 .course-semester-control {
   width: 150px;
@@ -1727,6 +1727,9 @@ textarea {
 @media (max-width: 600px) {
   .course-search-control {
     width: 100%;
+  }
+  .course-search-control input {
+    font-size: var(--text-small);
   }
   .course-toolbar {
     gap: 12px;

@@ -16,7 +16,7 @@ export const pages: PageRoute[] = [
     family: 'S03',
     stage: 'FE01',
     icon: 'offerings',
-    roles: ['INSTRUCTOR'],
+    roles: ['INSTRUCTOR', 'ADMIN'],
   },
   {
     path: '/offerings/new',

@@ -1,12 +1,21 @@
+import { apiQuiz } from '@/api/quiz'
+export { getOwnQuizResults } from '@/api/quiz'
 import { apiIdentity } from '@/api/identity'
+import { apiAdmin } from '@/api/administration'
 import { apiCourses } from '@/api/courses'
 import { apiContent, apiFiles } from '@/api/content'
 import { apiAssessment } from '@/api/assessment'
-export { getDashboard as getMvpDashboard } from '@/api/dashboard'
-export { getMvpSubmissions, getMvpSubmissionHistory } from '@/api/assessment'
+export {
+  getMvpSubmissions,
+  getMvpSubmissionHistory,
+  getPublishedAssignmentResults,
+} from '@/api/assessment'
 import { prepareInboxScenarios } from '@/mocks/personal-scenarios'
-import { mockPersonal, type PersonalService } from '@/mocks/personal-service'
-import { mockAdmin, type AdminService } from '@/mocks/admin-service'
+import { apiPersonal } from '@/api/personal'
+import { mockPersonal } from '@/mocks/personal-service'
+import type { PersonalService } from '@/services/personal-contracts'
+import { mockAdmin } from '@/mocks/admin-service'
+import type { AdminService } from '@/services/admin-contracts'
 import {
   prepareQuizScenarios,
   setQuizWorkerMode,
@@ -64,38 +73,9 @@ export const services: {
         content: mockContent,
       }
     : {
-        personal: {
-          summary: unavailable,
-          dashboard: unavailable,
-          inbox: unavailable,
-          read: unavailable,
-          destination: unavailable,
-          calendar: unavailable,
-          progress: unavailable,
-        },
-        admin: {
-          accounts: unavailable,
-          provision: unavailable,
-          update: unavailable,
-          resetPassword: unavailable,
-          audit: unavailable,
-        },
-        quiz: {
-          bank: unavailable,
-          question: unavailable,
-          saveQuestion: unavailable,
-          list: unavailable,
-          get: unavailable,
-          save: unavailable,
-          publish: unavailable,
-          archive: unavailable,
-          start: unavailable,
-          own: unavailable,
-          attempt: unavailable,
-          saveAnswer: unavailable,
-          seal: unavailable,
-          attempts: unavailable,
-        },
+        personal: apiPersonal,
+        admin: apiAdmin,
+        quiz: apiQuiz,
         assessment: apiAssessment,
         courses: apiCourses,
         content: apiContent,

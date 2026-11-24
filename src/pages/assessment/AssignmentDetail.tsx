@@ -1,10 +1,8 @@
-import { useOfferingRoute } from '@/services/use-offering-route'
 import { MvpSubmissionReview } from '@/components/assessment/MvpSubmissionReview'
 import { ActionButton as Button } from '@/components/workspace/WorkspaceUI'
 import { useAssignment } from '@/services/use-assignment'
 import { useCallback, useState } from 'react'
-import { Link } from 'react-router'
-import { DataTable, Panel, Status } from '@/components/ui'
+import { DataTable, Panel } from '@/components/ui'
 import { Badge, ConfirmDialog, LoadState } from '@/components/workspace/WorkspaceUI'
 import { AssignmentEditor } from '@/components/assessment/AssignmentEditor'
 import { AssignmentNav, AssignmentLoad, Schedule } from '@/components/assessment/AssessmentUI'
@@ -17,7 +15,6 @@ import { useAuth } from '@/services/auth-context'
 import { formatInstant } from '@/services/presentation'
 import { WorkspaceAccessContext } from '@/services/workspace-access-context'
 export function AssignmentDetail() {
-  const { prefix } = useOfferingRoute()
   const { identity } = useAuth()
   const result = useAssignment(),
     [edit, setEdit] = useState(false),
@@ -40,16 +37,16 @@ export function AssignmentDetail() {
                 {view.assignment.maxScore} points · {view.assignment.weight}% weight ·{' '}
                 {view.mandatory ? 'Required' : 'Optional'}
               </p>
-              <p className="material-body">
-                {view.assignment.instructions || 'No additional instructions.'}
-              </p>
+              {view.assignment.instructions && (
+                <p className="material-body">{view.assignment.instructions}</p>
+              )}
               <Schedule view={view} />
-              <FileList files={view.attachments} />
+              {view.attachments.length > 0 && <FileList files={view.attachments} />}
               {view.teacher && (
                 <div className="actions">
                   {view.writable && (
                     <>
-                      <Button tone="secondary" onClick={() => setEdit(true)}>
+                      <Button icon="edit" tone="secondary" onClick={() => setEdit(true)}>
                         {view.assignment.status === 'DRAFT'
                           ? 'Edit assignment'
                           : 'Extend deadlines'}
@@ -67,12 +64,6 @@ export function AssignmentDetail() {
                       </Button>
                     </>
                   )}
-                  <Link
-                    className="button secondary"
-                    to={`${prefix}/assignments/${view.assignment.id}/grading`}
-                  >
-                    Open grading queue
-                  </Link>
                 </div>
               )}
             </Panel>
@@ -128,6 +119,7 @@ export function AssignmentDetail() {
             {archive && (
               <ConfirmDialog
                 title="Archive assignment?"
+                icon="archive"
                 confirm="Archive assignment"
                 close={() => setArchive(false)}
                 run={() =>
@@ -186,35 +178,22 @@ export function SubmissionHistory({
       <LoadState {...result} retry={result.reload} />
       {result.data && (
         <>
-          <Panel
-            title={
-              result.data.submission?.subjectType === 'GROUP'
-                ? 'Frozen submission roster'
-                : 'Submission members'
-            }
-            icon="people-small"
-          >
-            <p>
-              {result.data.submission?.status === 'NOT_SUBMITTED'
-                ? 'Not submitted · no receipt or activity completion.'
-                : result.data.submission
-                  ? result.data.submission.subjectType === 'GROUP'
-                    ? 'These group members share every version of this submission.'
-                    : 'These members share this submission.'
-                  : 'Members will appear after the first submission.'}
-            </p>
-            {result.data.recipients.length > 0 && (
-              <DataTable
-                rows={result.data.recipients}
-                rowKey={(r) => r.id}
-                columns={[
-                  { label: 'Member', render: (r) => r.displayName },
-                  { label: 'Student ID', render: (r) => r.id },
-                  { label: 'Account', render: (r) => <Badge value={r.status} /> },
-                ]}
-              />
-            )}
-          </Panel>
+          {result.data.submission?.subjectType === 'GROUP' && (
+            <Panel title="Submission group members" icon="people-small">
+              <p>These members share the submission and its grade. This list is fixed.</p>
+              {result.data.recipients.length > 0 && (
+                <DataTable
+                  rows={result.data.recipients}
+                  rowKey={(r) => r.id}
+                  columns={[
+                    { label: 'Member', render: (r) => r.displayName },
+                    { label: 'Student ID', render: (r) => r.id },
+                    { label: 'Account', render: (r) => <Badge value={r.status} /> },
+                  ]}
+                />
+              )}
+            </Panel>
+          )}
           {published && (
             <Panel title="Published grade and feedback" icon="publish-small">
               <p>
@@ -225,11 +204,9 @@ export function SubmissionHistory({
               {published.isMissingZero && published.zeroReason && <p>{published.zeroReason}</p>}
             </Panel>
           )}
-          <Panel title="Version history" icon="document-small">
-            {!result.data.history.length ? (
-              <Status>No submissions yet.</Status>
-            ) : (
-              result.data.history.map((v) => (
+          {result.data.history.length > 0 && (
+            <Panel title="Version history" icon="document-small">
+              {result.data.history.map((v) => (
                 <details key={v.versionNo} className="version-history">
                   <summary>
                     Version {v.versionNo} · {v.isLate ? 'Late' : 'On time'} ·{' '}
@@ -240,9 +217,9 @@ export function SubmissionHistory({
                   </p>
                   <FileList files={result.data!.files.filter((f) => v.fileIds.includes(f.id))} />
                 </details>
-              ))
-            )}
-          </Panel>
+              ))}
+            </Panel>
+          )}
         </>
       )}
     </>

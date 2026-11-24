@@ -1,7 +1,7 @@
 import { apiMode } from '@/services'
 import { formatInstant } from '@/services/presentation'
 import { useCallback, useState } from 'react'
-import { Button, Dialog, Field, Panel, Status } from '@/components/ui'
+import { Button, Dialog, Field, Icon, Panel, Status } from '@/components/ui'
 import { AnnouncementEditor } from '@/components/workspace/AnnouncementEditor'
 import { ActionButton, Badge, Feedback, LoadState, Pager } from '@/components/workspace/WorkspaceUI'
 import type { AnnouncementView } from '@/services/course-contracts'
@@ -48,7 +48,17 @@ export function AnnouncementsPanel({
   }
   return (
     <>
-      <Panel title="Class announcements" icon="messages">
+      <Panel
+        title="Class announcements"
+        icon="announcements"
+        actions={
+          writable ? (
+            <ActionButton icon="add-white" onClick={() => setEditor({})}>
+              Create announcement
+            </ActionButton>
+          ) : undefined
+        }
+      >
         <Field
           label="Search announcements"
           maxLength={200}
@@ -69,55 +79,68 @@ export function AnnouncementsPanel({
         {result.data && (
           <>
             {!result.data.items.length && <Status>No announcements are available.</Status>}
-            {result.data.items.map((item) => (
-              <article className="announcement-card" key={item.id}>
-                <h3>{item.title}</h3>
-                <p>
-                  <Badge value={item.status} />{' '}
-                  {item.hasUnpublishedChanges && <Badge value="DRAFT_CHANGES" />}
-                  {item.publishedAt ? formatInstant(item.publishedAt) : 'Not published'}
-                </p>
-                <p>{item.body.length > 180 ? `${item.body.slice(0, 180)}…` : item.body}</p>
-                <div className="actions">
-                  <ActionButton
-                    icon="messages"
-                    tone="secondary"
-                    onClick={() => setReading(item.id)}
-                  >
-                    Read announcement
-                  </ActionButton>
-                  {!apiMode && writable && item.status !== 'ARCHIVED' && (
-                    <Button tone="secondary" onClick={() => setEditor({ item })}>
-                      Edit announcement
-                    </Button>
-                  )}
-                  {canPublish && item.status !== 'ARCHIVED' && item.hasUnpublishedChanges && (
-                    <ActionButton
-                      icon="publish-small"
-                      disabled={
-                        publication.pending || result.loading || mustReview(publication.error)
-                      }
-                      onClick={() =>
-                        void publication.run(
-                          () => services.content.publishAnnouncement(item.id, item.version),
-                          undefined,
-                          'Announcement published.',
-                        )
-                      }
+            {result.data.items.map((item) => {
+              const hasManageActions =
+                (!apiMode && writable && item.status !== 'ARCHIVED') ||
+                (canPublish && item.status !== 'ARCHIVED' && item.hasUnpublishedChanges)
+              return (
+                <article
+                  className="announcement-card clickable"
+                  key={item.id}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`Read announcement: ${item.title}`}
+                  onClick={() => setReading(item.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      setReading(item.id)
+                    }
+                  }}
+                >
+                  <h3>{item.title}</h3>
+                  <p>
+                    <Badge value={item.status} />{' '}
+                    {item.hasUnpublishedChanges && <Badge value="DRAFT_CHANGES" />}
+                    {item.publishedAt ? formatInstant(item.publishedAt) : 'Not published'}
+                  </p>
+                  <p>{item.body.length > 180 ? `${item.body.slice(0, 180)}…` : item.body}</p>
+                  {hasManageActions && (
+                    <div
+                      className="actions"
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => e.stopPropagation()}
                     >
-                      Publish saved draft
-                    </ActionButton>
+                      {!apiMode && writable && item.status !== 'ARCHIVED' && (
+                        <Button tone="secondary" onClick={() => setEditor({ item })}>
+                          <Icon name="edit" size={20} />
+                          Edit announcement
+                        </Button>
+                      )}
+                      {canPublish && item.status !== 'ARCHIVED' && item.hasUnpublishedChanges && (
+                        <ActionButton
+                          icon="publish-small"
+                          disabled={
+                            publication.pending || result.loading || mustReview(publication.error)
+                          }
+                          onClick={() =>
+                            void publication.run(
+                              () => services.content.publishAnnouncement(item.id, item.version),
+                              undefined,
+                              'Announcement published.',
+                            )
+                          }
+                        >
+                          Publish saved draft
+                        </ActionButton>
+                      )}
+                    </div>
                   )}
-                </div>
-              </article>
-            ))}
+                </article>
+              )
+            })}
             <Pager value={result.data} change={setPage} />
           </>
-        )}
-        {writable && (
-          <ActionButton icon="add-white" onClick={() => setEditor({})}>
-            Create announcement
-          </ActionButton>
         )}
       </Panel>
       {editor && (
@@ -132,7 +155,7 @@ export function AnnouncementsPanel({
         <Dialog
           title={detail.data?.title ?? 'Announcement'}
           wide
-          icon="messages"
+          icon="announcements"
           close={closeReader}
         >
           <LoadState {...detail} retry={detail.reload} />

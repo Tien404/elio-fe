@@ -1,6 +1,7 @@
 import { useState } from 'react'
+import { toast } from 'react-toastify'
 import { useAuth } from '@/services/auth-context'
-import { ServiceError, errorMessage, requiresSessionRefresh } from '@/services/errors'
+import { ServiceError, errorMessage, mustReview, requiresSessionRefresh } from '@/services/errors'
 
 export function useAction() {
   const { signedOut, refresh } = useAuth()
@@ -15,11 +16,18 @@ export function useAction() {
       const result = await operation()
       done?.(result)
       setSuccess(message)
+      if (message) toast.success(message)
       return true
     } catch (e) {
       if (e instanceof ServiceError && e.status === 401) signedOut(e.message)
       if (requiresSessionRefresh(e)) void refresh()
-      setError(e instanceof Error ? e : new Error(errorMessage(e)))
+      const err = e instanceof Error ? e : new Error(errorMessage(e))
+      setError(err)
+      if (mustReview(e) || (e instanceof ServiceError && [409, 412, 429].includes(e.status))) {
+        toast.warn(err.message)
+      } else {
+        toast.error(err.message)
+      }
       return false
     } finally {
       setPending(false)

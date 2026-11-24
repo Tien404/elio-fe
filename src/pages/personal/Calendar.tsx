@@ -160,7 +160,7 @@ export function Calendar() {
                     label: 'Type',
                     render: (e) => e.type ?? calendarKindLabel[e.kind],
                   },
-                  { label: 'Time (Vietnam)', render: (e) => formatInstant(e.at) },
+                  { label: 'Time', render: (e) => formatInstant(e.at) },
                   { label: 'Status', render: (e) => <Badge value={e.status} /> },
                 ]}
               />

@@ -97,7 +97,7 @@ export function QuestionBank() {
             result.error || section.error ? 'offering-content permission-lost' : 'offering-content'
           }
         >
-          <Panel title="Questions" icon="quizzes">
+          <Panel title="Questions" icon="question-bank">
             <div className="filters">
               {!fixedId && (
                 <SectionPicker
@@ -144,7 +144,7 @@ export function QuestionBank() {
                         label: 'Actions',
                         render: (q) => (
                           <Button
-                            icon="quiz-edit-white"
+                            icon="edit"
                             disabled={!section.data?.permissions.teach}
                             onClick={() => setEditor(q)}
                           >
@@ -168,7 +168,7 @@ export function QuestionBank() {
                 <EmptyState
                   title="No questions found"
                   description="Try a different course section or search term."
-                  icon="quizzes"
+                  icon="question-bank"
                 />
               ))
             )}

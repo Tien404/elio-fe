@@ -38,10 +38,6 @@ export function GroupEditor({
   ]
   return (
     <Dialog title={group ? 'Edit group' : 'Create group'} close={close}>
-      <Status>
-        Members can belong to one group per assignment. Assigned locked accounts remain recipients
-        when the group freezes.
-      </Status>
       <Feedback action={action} review={close} />
       <Field
         label="Group name"

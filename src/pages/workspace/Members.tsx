@@ -76,7 +76,14 @@ export function Members() {
                 rows={result.data.items}
                 rowKey={(m) => m.id}
                 columns={[
-                  { label: 'Student', render: (m) => m.account.displayName },
+                  {
+                    label: 'Student',
+                    render: (m) => (
+                      <button type="button" className="link-button" onClick={() => setDetails(m)}>
+                        {m.account.displayName}
+                      </button>
+                    ),
+                  },
                   { label: 'Identifier', render: (m) => m.account.id },
                   {
                     label: 'Membership',
@@ -85,14 +92,6 @@ export function Members() {
                         <Badge value={m.status} />
                         {m.account.status === 'LOCKED' && <Badge value="LOCKED" />}
                       </>
-                    ),
-                  },
-                  {
-                    label: 'Action',
-                    render: (m) => (
-                      <ActionButton tone="secondary" icon="preview" onClick={() => setDetails(m)}>
-                        View details
-                      </ActionButton>
                     ),
                   },
                 ]}

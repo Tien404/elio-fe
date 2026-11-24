@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Dialog, Panel, NavigationButton } from '@/components/ui'
 import { ActionButton as Button } from '@/components/workspace/WorkspaceUI'
+import { quizOptionLabel } from '@/services/quiz-status'
 import type { CopiedQuestion } from '@/services/quiz-contracts'
 export function QuizPreview({
   title,
@@ -27,11 +28,11 @@ export function QuizPreview({
               {Object.entries(q.options).map(([key, text]) => (
                 <label key={key}>
                   <input type="radio" name="quiz-preview" value={key} />
-                  {key} · {text}
+                  {quizOptionLabel(key)} · {text}
                 </label>
               ))}
             </fieldset>
-            <p>Teacher key: {q.correctKey}</p>
+            <p>Teacher key: {quizOptionLabel(q.correctKey)}</p>
             <p className="material-body">{q.explanation || 'No explanation.'}</p>
           </>
         ) : (

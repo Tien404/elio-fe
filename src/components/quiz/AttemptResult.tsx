@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { Panel, Status, DataTable } from '@/components/ui'
 import type { AttemptView } from '@/services/quiz-contracts'
 import { formatInstant } from '@/services/presentation'
+import { quizOptionLabel } from '@/services/quiz-status'
 export function AttemptResult({ view }: { view: AttemptView }) {
   const { prefix } = useOfferingRoute()
   const r = view.result
@@ -27,9 +28,12 @@ export function AttemptResult({ view }: { view: AttemptView }) {
                 },
                 {
                   label: 'Your saved answer',
-                  render: (b) => view.attempt.answers[String(b.questionId)] ?? 'Unanswered',
+                  render: (b) => {
+                    const ans = view.attempt.answers[String(b.questionId)]
+                    return ans ? quizOptionLabel(ans) : 'Unanswered'
+                  },
                 },
-                { label: 'Correct answer', render: (b) => b.correctKey },
+                { label: 'Correct answer', render: (b) => quizOptionLabel(b.correctKey) },
                 { label: 'Points', render: (b) => b.awardedPoints },
                 { label: 'Explanation', render: (b) => b.explanation ?? 'No explanation.' },
               ]}

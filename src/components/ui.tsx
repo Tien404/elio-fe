@@ -135,7 +135,7 @@ export function Panel({
   actions,
 }: {
   title: string
-  icon: string
+  icon?: string
   children: ReactNode
   actions?: ReactNode
 }) {
@@ -144,14 +144,14 @@ export function Panel({
       {actions ? (
         <div className="panel-heading">
           <h2>
-            <Icon name={icon} size={20} inheritColor />
+            {icon && <Icon name={icon} size={20} inheritColor />}
             {title}
           </h2>
           <div className="actions">{actions}</div>
         </div>
       ) : (
         <h2>
-          <Icon name={icon} size={20} inheritColor />
+          {icon && <Icon name={icon} size={20} inheritColor />}
           {title}
         </h2>
       )}
@@ -213,6 +213,19 @@ export function Dialog({
   const accessError = useContext(WorkspaceAccessContext)
   const ref = useRef<HTMLDialogElement>(null)
   const id = useId()
+  const filePickerOpenRef = useRef(false)
+  const lastFilePickerCloseRef = useRef(0)
+  const pointerDownOutsideRef = useRef(false)
+  useEffect(() => {
+    function onWindowFocus() {
+      if (filePickerOpenRef.current) {
+        filePickerOpenRef.current = false
+        lastFilePickerCloseRef.current = Date.now()
+      }
+    }
+    window.addEventListener('focus', onWindowFocus)
+    return () => window.removeEventListener('focus', onWindowFocus)
+  }, [])
   useEffect(() => {
     const dialog = ref.current!
     const previous = document.activeElement
@@ -222,13 +235,55 @@ export function Dialog({
       if (previous instanceof HTMLElement && previous.isConnected) previous.focus()
     }
   }, [])
+  function isFilePickerDismissal() {
+    const active = document.activeElement
+    return (
+      filePickerOpenRef.current ||
+      Date.now() - lastFilePickerCloseRef.current < 1000 ||
+      (active instanceof HTMLInputElement && active.type === 'file')
+    )
+  }
+  function isOutsideDialog(clientX: number, clientY: number) {
+    const rect = ref.current?.getBoundingClientRect()
+    if (!rect) return false
+    return (
+      clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom
+    )
+  }
   return (
     <dialog
       ref={ref}
       className={wide ? 'dialog-wide' : undefined}
       aria-labelledby={id}
+      onMouseDown={(event) => {
+        pointerDownOutsideRef.current =
+          event.target === ref.current && isOutsideDialog(event.clientX, event.clientY)
+      }}
+      onClick={(event) => {
+        if (
+          pointerDownOutsideRef.current &&
+          event.target === ref.current &&
+          isOutsideDialog(event.clientX, event.clientY) &&
+          !isFilePickerDismissal()
+        ) {
+          close()
+        }
+        pointerDownOutsideRef.current = false
+      }}
+      onClickCapture={(event) => {
+        if (event.target instanceof HTMLInputElement && event.target.type === 'file') {
+          filePickerOpenRef.current = true
+        }
+      }}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape' && isFilePickerDismissal()) {
+          event.preventDefault()
+          event.stopPropagation()
+        }
+      }}
       onCancel={(event) => {
         event.preventDefault()
+        if (isFilePickerDismissal()) return
         close()
       }}
     >
@@ -271,6 +326,7 @@ export function DataTable<T>({
   rowKey(row: T): string | number
   className?: string
 }) {
+  if (!rows.length) return null
   return (
     <div
       className="table-scroll responsive-table-region"

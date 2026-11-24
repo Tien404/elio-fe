@@ -95,7 +95,7 @@ export function OfferingEditor({
           ? `Edit ${saved.offering.courseCode} · ${saved.offering.sectionCode}`
           : 'Create course section'
       }
-      icon={saved ? 'info' : 'book-small'}
+      icon={saved ? 'edit' : 'book-small'}
       wide
       close={close}
     >

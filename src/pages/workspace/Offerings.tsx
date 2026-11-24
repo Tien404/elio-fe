@@ -33,9 +33,9 @@ export function Offerings({
       : 25,
     courseId = Number(params.get('courseId')) || undefined,
     sort = (
-      ['newest', 'title-asc', 'title-desc', 'semester'].includes(params.get('sort') ?? '')
+      ['newest', 'oldest', 'title-asc', 'title-desc', 'semester'].includes(params.get('sort') ?? '')
         ? params.get('sort')
-        : undefined
+        : 'newest'
     ) as OfferingQuery['sort'],
     display = params.get('view') === 'list' ? 'list' : 'grid'
   const [editing, setEditing] = useState<OfferingView>(),
@@ -90,8 +90,8 @@ export function Offerings({
           {me.account.role === 'STUDENT'
             ? 'Course-section list'
             : me.account.role === 'ADMIN'
-              ? 'Course-section operations'
-              : 'Course-section management'}
+              ? 'Operate course sections'
+              : 'Manage course sections'}
         </h1>
         <div className="actions course-page-actions">
           {me.account.role === 'INSTRUCTOR' && (
@@ -162,17 +162,17 @@ export function Offerings({
             <SelectControl
               label="Sort by"
               icon="sort"
-              value={sort ?? ''}
+              value={sort ?? 'newest'}
               onChange={(event) => update('sort', event.target.value)}
             >
-              <option value="">Default order</option>
               <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
               <option value="title-asc">Course name A–Z</option>
               <option value="title-desc">Course name Z–A</option>
               <option value="semester">Latest semester</option>
             </SelectControl>
           </div>
-          {(search || semester || status || sort) && (
+          {(search || semester || status || sort !== 'newest') && (
             <button
               className="course-clear-filters"
               type="button"

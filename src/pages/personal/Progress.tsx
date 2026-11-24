@@ -99,7 +99,9 @@ function ProgressDetail() {
                 {
                   label: 'Completed / Required',
                   render: (a) =>
-                    `${a.completed} / ${a.total} · ${a.percent === null ? 'No required activities' : `${a.percent}%`}`,
+                    a.total > 0
+                      ? `${a.completed} / ${a.total} · ${a.percent === null ? '—' : `${a.percent}%`}`
+                      : 'No required activities',
                 },
                 {
                   label: 'Missing activity',
@@ -134,7 +136,7 @@ function ProgressDetail() {
             />
           </>
         )}
-        {!teacher && selected && !r.error && (
+        {!teacher && selected && selected.total > 0 && !r.error && (
           <div className="progress-summary">
             <strong>{selected.percent === null ? '—' : `${selected.percent}%`}</strong>
             <div>
@@ -156,7 +158,8 @@ function ProgressDetail() {
       {selected && !r.error && (
         <Panel title={teacher ? 'Student activity progress' : 'Activity checklist'} icon="progress">
           <p>
-            {selected.displayName} · {selected.completed} / {selected.total}
+            {selected.displayName}
+            {selected.total > 0 && ` · ${selected.completed} / ${selected.total}`}
           </p>
           {(selected.notice === 'NO_MANDATORY_ACTIVITIES' || selected.total === 0) && (
             <Status>

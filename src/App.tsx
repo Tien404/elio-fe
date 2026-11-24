@@ -1,5 +1,7 @@
 import { Spinner } from '@/components/LoadingBoundary'
 import { lazy, Suspense } from 'react'
+import { ToastContainer } from 'react-toastify'
+import 'react-toastify/dist/ReactToastify.css'
 import { Assignments } from '@/pages/assessment/Assignments'
 import { AssignmentDetail } from '@/pages/assessment/AssignmentDetail'
 import { Groups } from '@/pages/assessment/Groups'
@@ -141,6 +143,14 @@ function App() {
         </Routes>
       </Suspense>
       <DemoControls />
+      <ToastContainer
+        position="top-right"
+        autoClose={3500}
+        newestOnTop
+        closeOnClick
+        pauseOnHover
+        theme="light"
+      />
     </AuthProvider>
   )
 }

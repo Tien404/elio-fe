@@ -241,14 +241,15 @@ function Administration() {
               value={auditTarget}
               onChange={(e) => filter('auditTarget', e.target.value.toUpperCase())}
             />
+            <div />
             <Field
-              label="From date (Vietnam)"
+              label="From date"
               type="date"
               value={auditFrom}
               onChange={(e) => filter('auditFrom', e.target.value)}
             />
             <Field
-              label="Through date (Vietnam)"
+              label="To date"
               type="date"
               value={auditTo}
               onChange={(e) => filter('auditTo', e.target.value)}

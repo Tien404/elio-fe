@@ -34,7 +34,7 @@ export interface CreateCatalogCourseInput {
   description?: string
 }
 export interface OfferingQuery extends PageQuery {
-  sort?: 'newest' | 'title-asc' | 'title-desc' | 'semester'
+  sort?: 'newest' | 'oldest' | 'title-asc' | 'title-desc' | 'semester'
   semester?: string
   status?: Offering['status'] | ''
   courseId?: number

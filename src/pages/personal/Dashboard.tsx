@@ -11,11 +11,6 @@ import { services } from '@/services'
 import { useAuth } from '@/services/auth-context'
 import { useResource } from '@/services/use-resource'
 const overview = { STUDENT: StudentOverview, INSTRUCTOR: TeacherOverview, ADMIN: AdminOverview }
-const description = {
-  STUDENT: 'What would you learn today?',
-  INSTRUCTOR: 'Your teaching workspace',
-  ADMIN: 'Account and course operations',
-}
 export function Dashboard() {
   const { identity } = useAuth(),
     account = identity!.me.account
@@ -28,7 +23,6 @@ export function Dashboard() {
         <h1>
           {account.role === 'ADMIN' ? 'Administrative overview' : `Welcome, ${account.displayName}`}
         </h1>
-        <p>{description[account.role]}</p>
       </header>
       <LoadState {...r} retry={r.reload} />
       {r.data && !r.error && (
@@ -55,7 +49,7 @@ export function Dashboard() {
                     },
                     { label: 'Course section', render: (event) => event.section },
                     { label: 'Event', render: (event) => calendarKindLabel[event.kind] },
-                    { label: 'Time (Vietnam)', render: (event) => formatInstant(event.at) },
+                    { label: 'Time', render: (event) => formatInstant(event.at) },
                   ]}
                 />
               ) : (

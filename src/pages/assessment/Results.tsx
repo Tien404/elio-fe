@@ -348,10 +348,7 @@ function ResultsDetail() {
           <Dialog title="Export gradebook CSV" close={() => setCsv(false)}>
             <Feedback action={action} />
             <p>
-              Export all rows matching the current student/result filters, across all pages.{' '}
-              {activityId
-                ? 'Only the selected activity is included.'
-                : 'All activities are included.'}{' '}
+              {activityId ? 'Only the selected activity is included.' : 'All results are included.'}{' '}
               Unpublished scores and feedback are excluded.
             </p>
             <div className="actions">

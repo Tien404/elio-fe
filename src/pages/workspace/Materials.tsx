@@ -301,55 +301,52 @@ export function Materials() {
                               'Not completed'
                             ),
                         },
-                        {
-                          label: 'Actions',
-                          render: (m) => (
-                            <div className="table-actions">
-                              <Link
-                                className="button secondary"
-                                to={`/offerings/${id}/materials/${m.resource.id}`}
-                              >
-                                <Icon name="book-small" size={16} />
-                                Read material
-                              </Link>
-                              {view.permissions.teach && m.resource.status !== 'ARCHIVED' && (
-                                <>
-                                  <ActionButton
-                                    icon="edit"
-                                    tone="secondary"
-                                    onClick={() => setEditor({ item: m })}
-                                  >
-                                    Edit
-                                  </ActionButton>
-                                  {m.resource.status === 'DRAFT' && (
-                                    <ActionButton
-                                      icon="publish-small"
-                                      disabled={publishing.pending}
-                                      onClick={() =>
-                                        void publishing.run(
-                                          () => saveState(m, 'PUBLISHED'),
-                                          undefined,
-                                          'Material published.',
-                                        )
-                                      }
-                                    >
-                                      Publish
-                                    </ActionButton>
-                                  )}
-                                  {m.resource.status === 'PUBLISHED' && (
-                                    <ActionButton
-                                      danger
-                                      icon="archive-white"
-                                      onClick={() => setArchiving(m)}
-                                    >
-                                      Archive
-                                    </ActionButton>
-                                  )}
-                                </>
-                              )}
-                            </div>
-                          ),
-                        },
+                        ...(view.permissions.teach
+                          ? [
+                              {
+                                label: 'Actions',
+                                render: (m: MaterialView) => (
+                                  <div className="table-actions">
+                                    {m.resource.status !== 'ARCHIVED' && (
+                                      <>
+                                        <ActionButton
+                                          icon="edit"
+                                          tone="secondary"
+                                          onClick={() => setEditor({ item: m })}
+                                        >
+                                          Edit
+                                        </ActionButton>
+                                        {m.resource.status === 'DRAFT' && (
+                                          <ActionButton
+                                            icon="publish-small"
+                                            disabled={publishing.pending}
+                                            onClick={() =>
+                                              void publishing.run(
+                                                () => saveState(m, 'PUBLISHED'),
+                                                undefined,
+                                                'Material published.',
+                                              )
+                                            }
+                                          >
+                                            Publish
+                                          </ActionButton>
+                                        )}
+                                        {m.resource.status === 'PUBLISHED' && (
+                                          <ActionButton
+                                            danger
+                                            icon="archive-white"
+                                            onClick={() => setArchiving(m)}
+                                          >
+                                            Archive
+                                          </ActionButton>
+                                        )}
+                                      </>
+                                    )}
+                                  </div>
+                                ),
+                              },
+                            ]
+                          : []),
                       ]}
                     />
                   ) : (
@@ -430,6 +427,7 @@ export function Materials() {
       {archiving && (
         <ConfirmDialog
           title="Archive material?"
+          icon="archive"
           confirm="Archive material"
           danger
           close={() => setArchiving(undefined)}

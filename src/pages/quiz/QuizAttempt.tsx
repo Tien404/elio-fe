@@ -12,6 +12,7 @@ import { useAuth } from '@/services/auth-context'
 import { requiresSessionRefresh, ServiceError } from '@/services/errors'
 import { useCountdown } from '@/services/use-countdown'
 import { formatInstant } from '@/services/presentation'
+import { quizOptionLabel } from '@/services/quiz-status'
 import type { AttemptView } from '@/services/quiz-contracts'
 import { WorkspaceAccessContext } from '@/services/workspace-access-context'
 export function QuizAttempt() {
@@ -22,7 +23,11 @@ export function QuizAttempt() {
   return (
     <div className="course-workspace">
       <h1>Quiz attempt</h1>
-      <LoadState {...result} retry={result.reload} />
+      <LoadState
+        loading={result.loading && !result.data}
+        error={result.error}
+        retry={result.reload}
+      />
       {result.data && !accessLost && (
         <WorkspaceAccessContext.Provider
           value={result.error ? { error: result.error, retry: result.reload } : undefined}
@@ -115,6 +120,25 @@ function AttemptWorkspace({
       </Panel>
       {q && (
         <Panel title={`Question ${index + 1} of ${view.attempt.questions.length}`} icon="info">
+          {view.attempt.questions.length > 1 && (
+            <nav className="quiz-question-grid" aria-label="Question navigator">
+              {view.attempt.questions.map((item, i) => {
+                const answered = !!((active ? state.local[item.id] : undefined) ?? durable[item.id])
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={`quiz-question-pill${i === index ? ' is-current' : ''}${answered ? ' is-answered' : ''}`}
+                    aria-current={i === index ? 'step' : undefined}
+                    aria-label={`Question ${i + 1}${answered ? ', answered' : ', unanswered'}`}
+                    onClick={() => setIndex(i)}
+                  >
+                    {i + 1}
+                  </button>
+                )
+              })}
+            </nav>
+          )}
           <p className="material-body">{q.prompt}</p>
           <fieldset className="quiz-answer-options" disabled={!canEdit || otherTab}>
             <legend>Select one answer</legend>
@@ -131,7 +155,7 @@ function AttemptWorkspace({
                   }}
                 />
                 <span>
-                  {key} · {text}
+                  {quizOptionLabel(key)} · {text}
                 </span>
               </label>
             ))}
@@ -143,16 +167,6 @@ function AttemptWorkspace({
               disabled={index === 0}
               onClick={() => setIndex((i) => i - 1)}
             />
-            {!view.teacher && (
-              <Button
-                icon="save-dark"
-                tone="secondary"
-                disabled={!canEdit || otherTab || !state.local[q.id] || !!state.saving[q.id]}
-                onClick={() => queue.enqueue(q.id)}
-              >
-                Save answer
-              </Button>
-            )}
             <NavigationButton
               direction="next"
               label="Next question"
@@ -194,19 +208,6 @@ function AttemptWorkspace({
           <Button icon="preview" tone="secondary" onClick={() => setReview(true)}>
             Review answers
           </Button>
-          <Button
-            icon="refresh"
-            tone="secondary"
-            disabled={!!state.pending || state.sealing || action.pending}
-            onClick={() =>
-              void action.run(
-                () => queue.check(),
-                () => setReview(true),
-              )
-            }
-          >
-            Check saved answers
-          </Button>
           {!view.teacher && active && view.canAnswer && (
             <Button
               icon="quiz-submit"
@@ -229,15 +230,37 @@ function AttemptWorkspace({
             rows={rows}
             rowKey={(r) => r.q.id}
             columns={[
-              { label: 'Question', render: (r) => `${r.q.ordinal}. ${r.q.prompt}` },
-              { label: 'Previously confirmed saved', render: (r) => r.saved || 'Unanswered' },
-              { label: 'Local choice', render: (r) => r.local || 'No pending change' },
+              {
+                label: 'Question',
+                render: (r) => (
+                  <button
+                    type="button"
+                    className="link-button"
+                    onClick={() => {
+                      const idx = view.attempt.questions.findIndex((item) => item.id === r.q.id)
+                      if (idx >= 0) setIndex(idx)
+                      setReview(false)
+                    }}
+                  >
+                    {r.q.ordinal}. {r.q.prompt}
+                  </button>
+                ),
+              },
+              {
+                label: 'Previously confirmed saved',
+                render: (r) => (r.saved ? quizOptionLabel(r.saved) : 'Unanswered'),
+              },
+              {
+                label: 'Local choice',
+                render: (r) => (r.local ? quizOptionLabel(r.local) : 'No pending change'),
+              },
               {
                 label: 'Latest service answer',
-                render: (r) =>
-                  state.reviewed
-                    ? (state.reviewed.attempt.answers[String(r.q.id)] ?? 'Unanswered')
-                    : 'Check saved answers to compare',
+                render: (r) => {
+                  if (!state.reviewed) return 'Check saved answers to compare'
+                  const latest = state.reviewed.attempt.answers[String(r.q.id)]
+                  return latest ? quizOptionLabel(latest) : 'Unanswered'
+                },
               },
             ]}
           />
@@ -292,9 +315,10 @@ function AttemptWorkspace({
           <Feedback action={action} />
           <p>
             {view.attempt.questions.length - Object.keys(durable).length} questions are currently
-            unanswered in the service. {state.pending} saves are queued. This action waits for
-            queued saves, then seals only durable saved answers. Unsaved local choices are excluded.
-            Answers cannot change after seal.
+            unanswered.
+            {/* {state.pending} saves are queued. This action waits for
+            queued saves, then seals only durable saved answers. Unsaved local choices are excluded. */}
+            Answers cannot change after finalized.
           </p>
           <div className="actions">
             <Button
@@ -323,6 +347,7 @@ function AttemptWorkspace({
                     setSeal(false)
                     reload()
                   },
+                  'Quiz submitted.',
                 )
               }
             >

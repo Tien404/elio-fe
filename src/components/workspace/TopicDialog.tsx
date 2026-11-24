@@ -32,7 +32,12 @@ export function TopicDialog({
     )
   }
   return (
-    <Dialog title={topic ? 'Edit topic' : 'Create topic'} icon="messages" wide close={close}>
+    <Dialog
+      title={topic ? 'Edit topic' : 'Create topic'}
+      icon={topic ? 'edit' : 'book-small'}
+      wide
+      close={close}
+    >
       <form onSubmit={submit}>
         <Feedback action={action} />
         <Field

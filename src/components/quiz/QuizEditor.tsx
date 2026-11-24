@@ -139,7 +139,7 @@ export function QuizEditor({
       wide
       title={published ? 'Quiz schedule' : 'Quiz editor'}
       close={close}
-      icon="book-small"
+      icon={view ? 'edit' : 'quizzes'}
     >
       <Feedback
         action={action}

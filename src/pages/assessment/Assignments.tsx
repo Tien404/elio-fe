@@ -54,15 +54,22 @@ export function Assignments() {
         actions={
           <>
             {teacher && (
-              <div className="actions">
-                <Button
-                  icon="add"
-                  disabled={!offeringId || !writable}
-                  onClick={() => setCreate(true)}
-                >
-                  Create assignment
-                </Button>
-                {!offeringId && <p>Select a course section to create an assignment.</p>}
+              <div className="header-action-column">
+                <div className="actions">
+                  <Button
+                    icon="add"
+                    disabled={!offeringId || !writable}
+                    title={
+                      !offeringId ? 'Select a course section to create an assignment.' : undefined
+                    }
+                    onClick={() => setCreate(true)}
+                  >
+                    Create assignment
+                  </Button>
+                </div>
+                {!offeringId && (
+                  <p className="action-hint">Select a course section to create an assignment.</p>
+                )}
               </div>
             )}
           </>

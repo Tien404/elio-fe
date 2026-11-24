@@ -31,7 +31,7 @@ export function OfferingTransition({
   return (
     <Dialog
       title={`${label} ${item.offering.courseCode} · ${item.offering.sectionCode}?`}
-      icon="info"
+      icon={command === 'archive' ? 'archive' : command === 'publish' ? 'publish' : 'unlock'}
       wide
       close={close}
     >

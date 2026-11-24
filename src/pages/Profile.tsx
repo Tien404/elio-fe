@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
+import { toast } from 'react-toastify'
 import { Button, Field, Icon, Panel, Status, PageHeader } from '@/components/ui'
 import { services } from '@/services'
 import { useAuth } from '@/services/auth-context'
@@ -27,13 +28,20 @@ export function Profile() {
       setName(result.me.account.displayName)
       setVersion(result.me.version)
       setSuccess('Profile saved.')
+      toast.success('Profile saved.')
       setConflict(false)
     } catch (e) {
-      setError(errorMessage(e))
+      const msg = errorMessage(e)
+      setError(msg)
       if (e instanceof ServiceError) {
         setFieldError(e.fields.displayName ?? '')
-        setConflict(e.status === 409 || e.status === 412)
+        const isConflict = e.status === 409 || e.status === 412
+        setConflict(isConflict)
+        if (isConflict) toast.warn(msg)
+        else toast.error(msg)
         if (e.status === 401) auth.signedOut(e.message)
+      } else {
+        toast.error(msg)
       }
     } finally {
       setPending(false)
@@ -73,8 +81,7 @@ export function Profile() {
     <>
       <PageHeader title="My profile" />
       <div className="settings-layout">
-        <Panel title="Your profile" icon="profile">
-          <p className="supporting-note">Manage your display name and contact details.</p>
+        <Panel title="Profile details" icon="profile">
           <form onSubmit={save}>
             {error && <Status error>{error}</Status>}
             {success && <Status>{success}</Status>}
@@ -87,10 +94,13 @@ export function Profile() {
                 required
                 error={fieldError}
               />
-              <Field label="Contact information" type="email" value={me.email} readOnly />
+              <Field label="Email" type="email" value={me.email} readOnly />
             </div>
             <div className="actions">
-              <Button type="submit" disabled={pending || conflict}>
+              <Button
+                type="submit"
+                disabled={pending || conflict || name.trim() === me.account.displayName}
+              >
                 <Icon name="save" size={20} inheritColor />
                 {pending ? 'Please wait…' : 'Save profile'}
               </Button>

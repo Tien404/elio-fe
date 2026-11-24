@@ -170,7 +170,13 @@ export function GradeEditor({
               <option value="BANNED">12 · Banned (counts as 0)</option>
             </Select>
             <Field
-              label={`Grade / ${maxScore}`}
+              label={
+                missing
+                  ? `Grade / ${maxScore} (locked at 0 — no submission)`
+                  : specialMark
+                    ? `Grade / ${maxScore} (counts as 0 — ${specialMark.toLowerCase()})`
+                    : `Grade / ${maxScore}`
+              }
               type="number"
               min={0}
               max={maxScore}

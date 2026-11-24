@@ -31,13 +31,13 @@ export function LearningOverview({ mode }: { mode: LearningOverviewMode }) {
           {
             label: 'Completed activities',
             value: completed,
-            icon: 'metric-assignments',
+            icon: 'metric-completed',
             detail: `${required} required activities`,
           },
           {
             label: 'Remaining activities',
             value: required - completed,
-            icon: 'metric-quizzes',
+            icon: 'metric-remaining',
             detail: 'Required activities to complete',
           },
           {
@@ -57,19 +57,19 @@ export function LearningOverview({ mode }: { mode: LearningOverviewMode }) {
           {
             label: teacher ? 'Final student results' : 'Final course results',
             value: resultRows.filter((row) => row.final).length,
-            icon: 'metric-progress',
+            icon: 'metric-completed',
             detail: 'Fully published results',
           },
           {
             label: 'Published results',
             value: cells.filter((cell) => cell.score !== null).length,
-            icon: 'metric-assignments',
+            icon: 'metric-completed',
             detail: 'Assignments and quizzes',
           },
           {
             label: 'Awaiting results',
             value: cells.filter((cell) => cell.score === null).length,
-            icon: 'metric-quizzes',
+            icon: 'metric-remaining',
             detail: 'No published score yet',
           },
         ]
@@ -162,7 +162,7 @@ export function LearningOverview({ mode }: { mode: LearningOverviewMode }) {
                       </div>
                     ) : mode === 'progress' ? (
                       <div className="learning-course-value">
-                        <strong>{coursePercent === null ? '—' : `${coursePercent}%`}</strong>
+                        {coursePercent !== null && <strong>{coursePercent}%</strong>}
                         <span>
                           {total
                             ? `${done} / ${total} required activities completed`
@@ -186,16 +186,15 @@ export function LearningOverview({ mode }: { mode: LearningOverviewMode }) {
                               : 'No published grade'}
                         </strong>
                         <span>
-                          {published} / {allResults} results published
+                          {allResults
+                            ? `${published} / ${allResults} results published`
+                            : 'No results yet'}
                         </span>
                         {!teacher && ownResult && (
                           <Badge value={ownResult.final ? 'FINAL' : 'PROVISIONAL'} />
                         )}
                       </div>
                     )}
-                    <Link className="button secondary" to={href}>
-                      {mode === 'progress' ? 'View progress' : 'View results'}
-                    </Link>
                   </article>
                 )
               })}

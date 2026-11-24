@@ -21,8 +21,28 @@ export function Team() {
   return (
     <>
       <h1>Instructor team</h1>
-      <Panel title="Instructor team" icon="people">
+      <Panel
+        title="Instructor team"
+        icon="people"
+        actions={
+          manage ? (
+            <ActionButton
+              icon="user-add-white"
+              disabled={refreshing}
+              onClick={() => setDialog({ mode: 'add' })}
+            >
+              Add instructor
+            </ActionButton>
+          ) : undefined
+        }
+      >
         <p>Manage the instructors teaching this course section.</p>
+        {manage && view.permissions.repairLead && (
+          <Status>
+            Restore is blocked. Use operational repair to add an active instructor and transfer
+            leadership first.
+          </Status>
+        )}
         <LoadState {...result} retry={result.reload} />
         {result.data && (
           <>
@@ -98,46 +118,6 @@ export function Team() {
           </>
         )}
       </Panel>
-      {manage && (
-        <Panel title="Manage team" icon="people">
-          <p>
-            Only the current lead instructor or an authorized administrator can change the team.
-          </p>
-          {view.permissions.repairLead && (
-            <Status>
-              Restore is blocked. Use operational repair to add an active instructor and transfer
-              leadership first.
-            </Status>
-          )}
-          <div className="actions">
-            <ActionButton
-              tone="secondary"
-              icon="user-add"
-              disabled={refreshing}
-              onClick={() => setDialog({ mode: 'add' })}
-            >
-              Add instructor
-            </ActionButton>
-            {!view.permissions.repairLead && (
-              <ActionButton
-                danger
-                icon="trash-white"
-                disabled={refreshing}
-                onClick={() => setDialog({ mode: 'remove' })}
-              >
-                Remove co-instructor
-              </ActionButton>
-            )}
-            <ActionButton
-              icon="transfer-white"
-              disabled={refreshing}
-              onClick={() => setDialog({ mode: 'transfer' })}
-            >
-              Transfer lead instructor
-            </ActionButton>
-          </div>
-        </Panel>
-      )}
       {(identity!.me.account.role === 'ADMIN' || view.teachingRole === 'LEAD') && (
         <AuditPanel id={id} />
       )}

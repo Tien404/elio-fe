@@ -101,7 +101,7 @@ export function MaterialEditor({
             ? 'Edit learning material'
             : 'Create learning material'
       }
-      icon="book-small"
+      icon={saved ? 'edit' : 'book-small'}
       wide
       close={close}
     >

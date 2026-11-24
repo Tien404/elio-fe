@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import { useAuth } from '@/services/auth-context'
 import { canAccess, pages } from '@/services/navigation'
-import { Button, Dialog, Icon } from '@/components/ui'
+import { Button, Icon } from '@/components/ui'
 import { LoadingBoundary } from '@/components/LoadingBoundary'
 
 const mobileQuery = '(max-width: 760px)'
@@ -29,7 +29,6 @@ export function Shell() {
   const drawerOpen = mobile && menu
   const [query, setQuery] = useState('')
   const [join, setJoin] = useState(false)
-  const [assistance, setAssistance] = useState(false)
   const sidebarRef = useRef<HTMLElement>(null)
   const menuRef = useRef<HTMLButtonElement>(null)
   function closeMenu() {
@@ -200,12 +199,14 @@ export function Shell() {
                 <span className="unread-count">{summary.data.unread}</span>
               )}
             </Link>
-            {me.account.role === 'INSTRUCTOR' && me.canCreateCourse && (
-              <Link className="button primary" to="/offerings/new">
-                Create course section
-              </Link>
-            )}
-            {me.account.role === 'STUDENT' && (
+            {location.pathname === '/dashboard' &&
+              me.account.role === 'INSTRUCTOR' &&
+              me.canCreateCourse && (
+                <Link className="button primary" to="/offerings/new">
+                  Create course section
+                </Link>
+              )}
+            {location.pathname === '/dashboard' && me.account.role === 'STUDENT' && (
               <Button onClick={() => setJoin(true)}>
                 <Icon name="join" size={16} />
                 Join by code
@@ -219,27 +220,10 @@ export function Shell() {
           </LoadingBoundary>
         </main>
         <footer>
-          <span>ELIO · Enhanced Learning Integration &amp; Organization Platform</span>
-          <button
-            className="text-button"
-            onClick={(event) => {
-              event.currentTarget.focus()
-              setAssistance(true)
-            }}
-          >
-            Account assistance
-          </button>
+          <span>ELIO</span>
         </footer>
       </div>
-      {assistance && (
-        <Dialog title="Account assistance" close={() => setAssistance(false)}>
-          <p>
-            Your account is managed by your institution. Contact your administrator for email
-            changes, access issues, password resets or account status.
-          </p>
-          <Button onClick={() => setAssistance(false)}>Close</Button>
-        </Dialog>
-      )}
+
       {join && (
         <JoinDialog
           close={() => setJoin(false)}

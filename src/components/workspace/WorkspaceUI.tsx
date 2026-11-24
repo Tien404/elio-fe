@@ -65,6 +65,8 @@ export function Pager({
   change(page: number): void
   changeSize?(size: number): void
 }) {
+  const multiplePages = value.totalPages > 1 || value.page > 1
+  if (!multiplePages && (!changeSize || value.totalItems <= 10)) return null
   return (
     <nav className="pagination" aria-label="Pagination">
       {changeSize ? (
@@ -87,20 +89,22 @@ export function Pager({
           {value.totalPages}
         </span>
       )}
-      <div className="actions">
-        <NavigationButton
-          direction="previous"
-          label="Previous page"
-          disabled={value.page <= 1}
-          onClick={() => change(value.page - 1)}
-        />
-        <NavigationButton
-          direction="next"
-          label="Next page"
-          disabled={value.page >= value.totalPages}
-          onClick={() => change(value.page + 1)}
-        />
-      </div>
+      {multiplePages && (
+        <div className="actions">
+          <NavigationButton
+            direction="previous"
+            label="Previous page"
+            disabled={value.page <= 1}
+            onClick={() => change(value.page - 1)}
+          />
+          <NavigationButton
+            direction="next"
+            label="Next page"
+            disabled={value.page >= value.totalPages}
+            onClick={() => change(value.page + 1)}
+          />
+        </div>
+      )}
     </nav>
   )
 }
@@ -177,6 +181,7 @@ export function ActionButton({
 }
 export function ConfirmDialog({
   title,
+  icon,
   children,
   confirm,
   close,
@@ -184,6 +189,7 @@ export function ConfirmDialog({
   danger = false,
 }: {
   title: string
+  icon?: string
   children: ReactNode
   confirm: string
   close(): void
@@ -192,7 +198,7 @@ export function ConfirmDialog({
 }) {
   const action = useAction()
   return (
-    <Dialog title={title} close={close}>
+    <Dialog title={title} icon={icon} close={close}>
       <Feedback action={action} />
       <div className="confirmation-content">{children}</div>
       <div className="actions">

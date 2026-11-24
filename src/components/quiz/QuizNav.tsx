@@ -28,6 +28,7 @@ export function QuizNav({ view }: { view: QuizView }) {
                   : `/question-bank?offeringId=${view.quiz.offeringId}`
               }
             >
+              <Icon name="question-bank" size={18} inheritColor />
               Question bank
             </NavLink>
           </>

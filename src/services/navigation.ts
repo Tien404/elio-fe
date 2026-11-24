@@ -110,7 +110,7 @@ export const pages: PageRoute[] = [
     title: 'Question bank',
     family: 'S12',
     stage: 'FE03',
-    icon: 'quizzes',
+    icon: 'question-bank',
     roles: ['INSTRUCTOR'],
   },
   {

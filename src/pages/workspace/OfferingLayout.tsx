@@ -66,7 +66,7 @@ export function OfferingLayout() {
         </NavLink>
         {view.permissions.academic && (
           <NavLink to={`/offerings/${id}/announcements`}>
-            <Icon name="messages" size={18} inheritColor />
+            <Icon name="announcements" size={18} inheritColor />
             Announcements
           </NavLink>
         )}

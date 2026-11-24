@@ -64,6 +64,7 @@ export function AssignmentEditor({
   }
   return (
     <Dialog
+      icon={view ? 'edit' : 'assignments'}
       wide
       title={published ? 'Extend assignment deadlines' : 'Assignment editor'}
       close={close}

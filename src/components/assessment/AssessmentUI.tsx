@@ -39,7 +39,13 @@ export function AssignmentNav({ view }: { view: AssignmentView }) {
   )
 }
 export function AssignmentLoad({ result }: { result: ReturnType<typeof useAssignment> }) {
-  return <LoadState loading={result.loading} error={result.error} retry={result.reload} />
+  return (
+    <LoadState
+      loading={result.loading && !result.data}
+      error={result.error}
+      retry={result.reload}
+    />
+  )
 }
 export function Schedule({ view }: { view: AssignmentView }) {
   return (

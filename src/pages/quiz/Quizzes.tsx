@@ -60,25 +60,28 @@ export function Quizzes() {
         actions={
           <>
             {teacher && (
-              <div className="actions">
-                <Button
-                  icon="add"
-                  disabled={!section.data?.permissions.teach}
-                  onClick={() => setCreate(true)}
-                >
-                  Create quiz
-                </Button>
-                <Link
-                  className="button secondary"
-                  to={
-                    fixedId
-                      ? `${prefix}/quizzes/question-bank`
-                      : `/question-bank${offeringId ? `?offeringId=${offeringId}` : ''}`
-                  }
-                >
-                  Question bank
-                </Link>
-                {!offeringId && <p>Select a section to create a quiz.</p>}
+              <div className="header-action-column">
+                <div className="actions">
+                  <Button
+                    icon="add"
+                    disabled={!section.data?.permissions.teach}
+                    title={!offeringId ? 'Select a section to create a quiz.' : undefined}
+                    onClick={() => setCreate(true)}
+                  >
+                    Create quiz
+                  </Button>
+                  <Link
+                    className="button secondary"
+                    to={
+                      fixedId
+                        ? `${prefix}/quizzes/question-bank`
+                        : `/question-bank${offeringId ? `?offeringId=${offeringId}` : ''}`
+                    }
+                  >
+                    Question bank
+                  </Link>
+                </div>
+                {!offeringId && <p className="action-hint">Select a section to create a quiz.</p>}
               </div>
             )}
           </>
@@ -143,14 +146,6 @@ export function Quizzes() {
                         : v.attemptId
                           ? 'Attempt started'
                           : quizAvailability(v),
-                  },
-                  {
-                    label: 'Actions',
-                    render: (v) => (
-                      <Link className="button secondary" to={`${prefix}/quizzes/${v.quiz.id}`}>
-                        {teacher ? 'Manage quiz' : v.attemptId ? 'View attempt' : 'View quiz'}
-                      </Link>
-                    ),
                   },
                 ]}
               />

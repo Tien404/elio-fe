@@ -69,63 +69,83 @@ export function Inbox() {
           <>
             <p>{r.data.unread} unread</p>
             <div className="notification-list">
-              {r.data.rows.items.map((notification) => (
-                <article
-                  className={`notification-row ${notification.status.toLowerCase()}`}
-                  key={notification.id}
-                >
-                  <span className="resource-icon">
-                    <Icon name="notifications" size={22} inheritColor />
-                  </span>
-                  <div className="resource-copy">
-                    <p>{notification.preview}</p>
-                    <div className="notification-meta">
-                      <time dateTime={notification.createdAt}>
-                        {formatInstant(notification.createdAt)}
-                      </time>
-                      <Badge value={notification.status} />
-                    </div>
-                  </div>
-                  <div className="actions">
-                    {notification.status !== 'READ' && (
-                      <Button
-                        tone="secondary"
-                        disabled={action.pending}
-                        onClick={() =>
-                          void action.run(
-                            () => services.personal.read(notification.id),
-                            () => {
-                              if (state === 'UNREAD' && page > 1 && r.data?.rows.items.length === 1)
-                                setParams((current) => {
-                                  current.set('page', String(page - 1))
-                                  return current
-                                })
-                            },
-                            'Marked as read.',
-                          )
-                        }
-                      >
-                        Mark as read
-                      </Button>
-                    )}
-                    <Button
-                      tone="secondary"
-                      disabled={action.pending}
-                      onClick={() =>
-                        void action.run(
-                          () => services.personal.destination(notification),
-                          (destination) => {
-                            if (destination.href) navigate(destination.href)
-                            else setUnavailable(true)
-                          },
-                        )
+              {r.data.rows.items.map((notification) => {
+                function openNotification() {
+                  if (action.pending) return
+                  void action.run(
+                    async () => {
+                      if (notification.status !== 'READ') {
+                        await services.personal.read(notification.id).catch(() => undefined)
                       }
-                    >
-                      View
-                    </Button>
-                  </div>
-                </article>
-              ))}
+                      return services.personal.destination(notification)
+                    },
+                    (destination) => {
+                      if (destination.href) navigate(destination.href)
+                      else setUnavailable(true)
+                    },
+                  )
+                }
+                return (
+                  <article
+                    className={`notification-row ${notification.status.toLowerCase()} clickable`}
+                    key={notification.id}
+                    tabIndex={0}
+                    role="button"
+                    aria-label={notification.preview}
+                    onClick={openNotification}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        openNotification()
+                      }
+                    }}
+                  >
+                    <span className="resource-icon">
+                      <Icon name="notifications" size={22} inheritColor />
+                    </span>
+                    <div className="resource-copy">
+                      <p>{notification.preview}</p>
+                      <div className="notification-meta">
+                        <time dateTime={notification.createdAt}>
+                          {formatInstant(notification.createdAt)}
+                        </time>
+                        <Badge value={notification.status} />
+                      </div>
+                    </div>
+                    {notification.status !== 'READ' && (
+                      <div
+                        className="actions"
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()}
+                      >
+                        <Button
+                          tone="secondary"
+                          disabled={action.pending}
+                          onClick={() =>
+                            void action.run(
+                              () => services.personal.read(notification.id),
+                              () => {
+                                if (
+                                  state === 'UNREAD' &&
+                                  page > 1 &&
+                                  r.data?.rows.items.length === 1
+                                )
+                                  setParams((current) => {
+                                    current.set('page', String(page - 1))
+                                    return current
+                                  })
+                              },
+                              'Marked as read.',
+                            )
+                          }
+                        >
+                          Mark as read
+                        </Button>
+                      </div>
+                    )}
+                  </article>
+                )
+              })}
             </div>
             {!r.data.rows.totalItems && (
               <EmptyState

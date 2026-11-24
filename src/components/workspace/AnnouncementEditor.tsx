@@ -48,7 +48,7 @@ export function AnnouncementEditor({
     <Dialog
       title={preview ? 'Announcement preview' : 'Class announcement'}
       wide
-      icon="messages"
+      icon="announcements"
       close={close}
     >
       {preview ? (

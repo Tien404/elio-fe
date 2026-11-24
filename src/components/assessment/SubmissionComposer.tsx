@@ -175,7 +175,7 @@ export function SubmissionComposer({ view, changed }: { view: AssignmentView; ch
         </>
       ) : (
         <>
-          {view.submission?.currentVersion && (
+          {view.canSubmit && view.submission?.currentVersion && (
             <Button
               tone="secondary"
               disabled={!view.canSubmit || action.pending}
@@ -194,13 +194,15 @@ export function SubmissionComposer({ view, changed }: { view: AssignmentView; ch
               Reuse latest confirmed files
             </Button>
           )}
-          <FileUploader
-            offeringId={a.offeringId}
-            purpose="SUBMISSION"
-            files={files}
-            change={setFiles}
-            disabled={!view.canSubmit || action.pending}
-          />
+          {view.canSubmit && (
+            <FileUploader
+              offeringId={a.offeringId}
+              purpose="SUBMISSION"
+              files={files}
+              change={setFiles}
+              disabled={!view.canSubmit || action.pending}
+            />
+          )}
           {!view.canSubmit && (
             <Status>
               New confirmations are unavailable outside the submission window, in Archived sections
@@ -218,13 +220,15 @@ export function SubmissionComposer({ view, changed }: { view: AssignmentView; ch
               Discard files and load latest submission
             </Button>
           )}
-          <Button
-            icon="preview"
-            disabled={!view.canSubmit || !files.length || action.pending}
-            onClick={() => void action.run(prepare)}
-          >
-            Review submission
-          </Button>
+          {view.canSubmit && (
+            <Button
+              icon="preview"
+              disabled={!view.canSubmit || !files.length || action.pending}
+              onClick={() => void action.run(prepare)}
+            >
+              Review submission
+            </Button>
+          )}
         </>
       )}
       {review && prepared && (

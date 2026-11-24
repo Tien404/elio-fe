@@ -141,20 +141,23 @@ export function MvpSubmissionComposer({
     <Panel title={mode === 'GROUP' ? 'Group submission' : 'Your submission'} icon="document-small">
       <Feedback action={action} />
       {view.group && <p>{view.group.name} · Any group member can submit on behalf of the team.</p>}
-      {view.submission?.currentVersion && (
+      {/* {view.submission?.currentVersion && (
         <p>
           Latest submission: version {view.submission.version} ·{' '}
           {view.submission.currentVersion.receiptCode}
         </p>
-      )}
+      )} */}
       {receipt ? (
         <>
           <Status>
-            Submitted successfully · {receipt.receiptCode} · Version {receipt.versionNo}
+            Submitted successfully
+            {/* · {receipt.receiptCode} · Version {receipt.versionNo} */}
           </Status>
-          <ActionButton tone="secondary" disabled={!view.canSubmit} onClick={() => reset(false)}>
-            Prepare another version
-          </ActionButton>
+          {view.canSubmit && (
+            <ActionButton tone="secondary" onClick={() => reset(false)}>
+              Prepare another version
+            </ActionButton>
+          )}
         </>
       ) : prepared ? (
         <>
@@ -254,19 +257,21 @@ export function MvpSubmissionComposer({
           {!view.canSubmit && (
             <Status>Submissions are closed or this course section is read-only.</Status>
           )}
-          <FileUploader
-            offeringId={offeringId}
-            assignmentId={id}
-            purpose="SUBMISSION"
-            files={files}
-            change={(next) => {
-              setFiles(next)
-              setReviewed(null)
-              action.clear()
-            }}
-            disabled={!view.canSubmit || action.pending}
-          />
-          {files.length > 0 && (
+          {view.canSubmit && (
+            <FileUploader
+              offeringId={offeringId}
+              assignmentId={id}
+              purpose="SUBMISSION"
+              files={files}
+              change={(next) => {
+                setFiles(next)
+                setReviewed(null)
+                action.clear()
+              }}
+              disabled={!view.canSubmit || action.pending}
+            />
+          )}
+          {view.canSubmit && files.length > 0 && (
             <>
               <ActionButton
                 disabled={!view.canSubmit || action.pending}

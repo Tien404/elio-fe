@@ -1,7 +1,7 @@
 import { useAuth } from '@/services/auth-context'
 import { useCallback, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
-import { Button, DataTable, Panel, Status } from '@/components/ui'
+import { Button, DataTable, Icon, Panel, Status } from '@/components/ui'
 import { Badge, LoadState, Pager } from '@/components/workspace/WorkspaceUI'
 import { AnnouncementsPanel } from '@/components/workspace/AnnouncementsPanel'
 import { OfferingEditor } from '@/components/workspace/OfferingEditor'
@@ -39,6 +39,7 @@ export function Overview() {
             <div className="actions">
               {view.permissions.edit && (
                 <Button tone="secondary" disabled={refreshing} onClick={() => setEdit(true)}>
+                  <Icon name="edit" size={20} />
                   Edit learning information
                 </Button>
               )}
@@ -51,6 +52,16 @@ export function Overview() {
                       disabled={refreshing}
                       onClick={() => setCommand(action)}
                     >
+                      <Icon
+                        name={
+                          action === 'archive'
+                            ? 'archive'
+                            : action === 'publish'
+                              ? 'publish'
+                              : 'unlock'
+                        }
+                        size={20}
+                      />
                       {action[0].toUpperCase() + action.slice(1)} section
                     </Button>
                   ),
@@ -105,7 +116,7 @@ function LearningSummary({ view }: { view: OfferingView }) {
     ),
     result = useResource(load, `overview-materials:${id}:${page}`)
   return (
-    <Panel title="Published learning content" icon="book-small">
+    <Panel title="Materials" icon="book-small">
       <LoadState {...result} retry={result.reload} />
       {result.data && (
         <>
@@ -136,17 +147,6 @@ function LearningSummary({ view }: { view: OfferingView }) {
           <Pager value={result.data} change={setPage} />
         </>
       )}
-      <div className="actions">
-        <Link className="button secondary" to={`/offerings/${id}/materials`}>
-          Topics and materials
-        </Link>
-        <Link className="button secondary" to={`/offerings/${id}/members`}>
-          Members
-        </Link>
-        <Link className="button primary" to={`/offerings/${id}/team`}>
-          Teaching team
-        </Link>
-      </div>
     </Panel>
   )
 }
@@ -215,7 +215,7 @@ function AssignmentSummary({ id }: { id: number }) {
     ),
     result = useResource(load, `overview-assignments:${id}`)
   return (
-    <Panel title="Published assignments" icon="document-small">
+    <Panel title="Assignments" icon="document-small">
       <LoadState {...result} retry={result.reload} />
       {result.data &&
         (result.data.items.length ? (

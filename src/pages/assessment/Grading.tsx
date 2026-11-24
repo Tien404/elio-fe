@@ -1,10 +1,14 @@
 import { useAction } from '@/services/use-action'
-import { Feedback } from '@/components/workspace/WorkspaceUI'
-import { ActionButton as Button } from '@/components/workspace/WorkspaceUI'
+import {
+  ActionButton as Button,
+  ConfirmDialog,
+  Feedback,
+  LoadState,
+  Pager,
+} from '@/components/workspace/WorkspaceUI'
 import { useAssignment } from '@/services/use-assignment'
 import { useCallback, useEffect, useState } from 'react'
 import { Panel, DataTable, Status } from '@/components/ui'
-import { LoadState, Pager } from '@/components/workspace/WorkspaceUI'
 import { AssignmentNav, AssignmentLoad } from '@/components/assessment/AssessmentUI'
 import { GradeEditor } from '@/components/assessment/GradeEditor'
 import { services } from '@/services'
@@ -21,6 +25,7 @@ export function Grading() {
     { identity } = useAuth(),
     [page, setPage] = useState(1),
     [selected, setSelected] = useState<GradeSubject>(),
+    [confirmPublish, setConfirmPublish] = useState(false),
     load = useCallback(
       () => (id ? services.assessment.queue(id, { page }) : Promise.resolve(null)),
       [id, page],
@@ -62,18 +67,16 @@ export function Grading() {
                   <Button
                     tone="secondary"
                     disabled={publication.pending}
-                    onClick={() => {
-                      if (window.confirm('Publish every saved draft for this assignment?'))
-                        void publication.run(
-                          () => services.assessment.releaseGrades(id),
-                          () => queue.reload(),
-                        )
-                    }}
+                    onClick={() => setConfirmPublish(true)}
                   >
                     Publish all saved drafts
                   </Button>
                 )}
-                <LoadState {...queue} retry={queue.reload} />
+                <LoadState
+                  loading={queue.loading && !queue.data}
+                  error={queue.error}
+                  retry={queue.reload}
+                />
                 {queue.data &&
                   (queue.data.items.length ? (
                     <>
@@ -155,6 +158,25 @@ export function Grading() {
                   queue.reload()
                 }}
               />
+            )}
+            {confirmPublish && (
+              <ConfirmDialog
+                title="Publish all saved drafts"
+                confirm="Publish all"
+                close={() => setConfirmPublish(false)}
+                run={() =>
+                  publication.run(
+                    () => services.assessment.releaseGrades(id),
+                    () => queue.reload(),
+                    'All saved draft grades published.',
+                  )
+                }
+              >
+                <p>
+                  Publish every saved draft grade for this assignment? Published grades become
+                  visible to students.
+                </p>
+              </ConfirmDialog>
             )}
           </div>
         </WorkspaceAccessContext.Provider>

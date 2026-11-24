@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Dialog, Field, Status } from '@/components/ui'
+import { Dialog, Field } from '@/components/ui'
 import {
   ActionButton as Button,
   Feedback,
@@ -9,6 +9,7 @@ import {
 import { services } from '@/services'
 import { mustReview } from '@/services/errors'
 import { useAction } from '@/services/use-action'
+import { quizOptionLabel } from '@/services/quiz-status'
 import type { QuestionInput, QuestionItem } from '@/services/quiz-contracts'
 export function QuestionEditor({
   offeringId,
@@ -56,7 +57,7 @@ export function QuestionEditor({
     <Dialog
       wide
       title={input.kind === 'TRUE_FALSE' ? 'True-False question' : 'Question editor'}
-      icon="info"
+      icon={question ? 'edit' : 'question-bank'}
       close={close}
     >
       <Feedback
@@ -93,7 +94,7 @@ export function QuestionEditor({
           {Object.entries(input.options).map(([key, value]) => (
             <div key={key}>
               <Field
-                label={`Choice ${key}`}
+                label={`Choice ${quizOptionLabel(key)}`}
                 maxLength={2000}
                 value={value}
                 onChange={(e) => field('options', { ...input.options, [key]: e.target.value })}
@@ -101,7 +102,7 @@ export function QuestionEditor({
               {input.kind === 'SINGLE_CHOICE' && Object.keys(input.options).length > 2 && (
                 <Button
                   tone="secondary"
-                  aria-label={`Remove choice ${key}`}
+                  aria-label={`Remove choice ${quizOptionLabel(key)}`}
                   onClick={() => {
                     const next = { ...input.options }
                     delete next[key]
@@ -119,14 +120,16 @@ export function QuestionEditor({
           ))}
         </div>
         {input.kind === 'SINGLE_CHOICE' && (
-          <Button
-            icon="add"
-            tone="secondary"
-            disabled={Object.keys(input.options).length >= 20}
-            onClick={add}
-          >
-            Add option
-          </Button>
+          <div className="quiz-add-option">
+            <Button
+              icon="add"
+              tone="secondary"
+              disabled={Object.keys(input.options).length >= 20}
+              onClick={add}
+            >
+              Add option
+            </Button>
+          </div>
         )}
         <Select
           label="Correct answer · exactly one"
@@ -136,9 +139,11 @@ export function QuestionEditor({
           {!Object.hasOwn(input.options, input.correctKey) && (
             <option value="">Select a valid answer</option>
           )}
-          {Object.keys(input.options).map((key) => (
+          {Object.entries(input.options).map(([key, text]) => (
             <option key={key} value={key}>
-              {key}
+              {input.kind === 'TRUE_FALSE' && text
+                ? `${quizOptionLabel(key)} · ${text}`
+                : quizOptionLabel(key)}
             </option>
           ))}
         </Select>
@@ -157,7 +162,7 @@ export function QuestionEditor({
           onChange={(e) => field('explanation', e.target.value || null)}
         />
       </fieldset>
-      <Status>Bank edits never change a published quiz copy.</Status>
+      {/* <Status>Bank edits never change a published quiz copy.</Status> */}
       <div className="actions">
         <Button icon="cancel-dark" tone="secondary" disabled={action.pending} onClick={close}>
           Cancel

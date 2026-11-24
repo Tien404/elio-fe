@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 import { SelectControl } from '@/components/SelectControl'
 import { Link, useNavigate, useSearchParams } from 'react-router'
-import { DataTable, Icon, Panel, Status } from '@/components/ui'
+import { DataTable, EmptyState, Icon, Panel, Status } from '@/components/ui'
 import { ActionButton, Badge, LoadState, Pager } from '@/components/workspace/WorkspaceUI'
 import { OfferingCard } from '@/components/workspace/OfferingCard'
 import { OfferingEditor } from '@/components/workspace/OfferingEditor'
@@ -79,7 +79,6 @@ export function Offerings({
             </ActionButton>
           ),
       )}
-      <Link to={`/offerings/${r.offering.id}/team`}>Team</Link>
     </div>
   )
   const closeCreate = () => navigate('/offerings')
@@ -214,7 +213,11 @@ export function Offerings({
         {result.data && (
           <>
             {!result.data.items.length ? (
-              <Status>No course sections match your access and filters.</Status>
+              <EmptyState
+                icon="notfound"
+                title="No course sections found"
+                description="No course sections match your access and filters."
+              />
             ) : display === 'grid' ? (
               <div className="course-cards">
                 {result.data.items.map((item) => (

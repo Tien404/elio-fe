@@ -201,6 +201,7 @@ export function LearningOverview({ mode }: { mode: LearningOverviewMode }) {
             </div>
             {!visible.length && (
               <EmptyState
+                icon={courses.length ? 'notfound' : 'book-small'}
                 title={courses.length ? 'No matching courses' : 'No course sections yet'}
                 description={
                   courses.length

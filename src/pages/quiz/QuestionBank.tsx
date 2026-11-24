@@ -168,7 +168,7 @@ export function QuestionBank() {
                 <EmptyState
                   title="No questions found"
                   description="Try a different course section or search term."
-                  icon="question-bank"
+                  icon="notfound"
                 />
               ))
             )}

@@ -63,7 +63,7 @@ export function Members() {
               setPage(1)
             }}
           >
-            <option value="">All available memberships</option>
+            <option value="">All memberships</option>
             <option value="ACTIVE">Active</option>
             <option value="REMOVED">Removed</option>
           </Select>

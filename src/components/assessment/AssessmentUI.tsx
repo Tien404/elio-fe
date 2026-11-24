@@ -30,9 +30,6 @@ export function AssignmentNav({ view }: { view: AssignmentView }) {
             Grading
           </NavLink>
         )}
-        <NavLink to={prefix ? `${prefix}/results` : `/results?offeringId=${a.offeringId}`}>
-          {view.teacher ? 'Gradebook' : 'My results'}
-        </NavLink>
       </nav>
       {!view.writable && view.teacher && <Status>Read-only assignment or course section.</Status>}
     </>

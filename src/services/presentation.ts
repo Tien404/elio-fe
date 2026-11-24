@@ -29,6 +29,18 @@ export function formatFileSize(bytes: number) {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
+export function fileExtension(name: string): string {
+  const parts = name.split('.')
+  if (parts.length < 2) return 'FILE'
+  const ext = parts[parts.length - 1].trim().toUpperCase()
+  return ext.slice(0, 4) || 'FILE'
+}
+export function fileBadgeTone(ext: string): string {
+  if (ext === 'PDF') return 'is-pdf'
+  if (['PNG', 'JPG', 'JPEG', 'WEBP', 'GIF', 'SVG'].includes(ext)) return 'is-image'
+  if (['ZIP', 'RAR', '7Z', 'TAR', 'GZ'].includes(ext)) return 'is-archive'
+  return ''
+}
 export function formatInstant(value: string) {
   return new Intl.DateTimeFormat('en-GB', {
     timeZone: 'Asia/Ho_Chi_Minh',

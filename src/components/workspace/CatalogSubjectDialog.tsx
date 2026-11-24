@@ -18,7 +18,7 @@ export function CatalogSubjectDialog({ close }: { close(): void }) {
   const navigate = useNavigate()
 
   return (
-    <Dialog title="Create catalog subject" icon="book-small" close={close}>
+    <Dialog title="Create catalog subject" icon="catalog" close={close}>
       <form
         onSubmit={(event) => {
           event.preventDefault()

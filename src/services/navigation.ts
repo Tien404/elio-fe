@@ -15,7 +15,7 @@ export const pages: PageRoute[] = [
     title: 'Course catalog',
     family: 'S03',
     stage: 'FE01',
-    icon: 'offerings',
+    icon: 'catalog',
     roles: ['INSTRUCTOR', 'ADMIN'],
   },
   {
@@ -128,7 +128,14 @@ export const pages: PageRoute[] = [
     stage: 'FE04',
     icon: 'notifications',
   },
-  { path: '/calendar', title: 'Calendar', family: 'S15', stage: 'FE04', icon: 'calendar' },
+  {
+    path: '/calendar',
+    title: 'Calendar',
+    family: 'S15',
+    stage: 'FE04',
+    icon: 'calendar',
+    roles: ['STUDENT', 'INSTRUCTOR'],
+  },
   {
     path: '/progress',
     title: 'Progress',

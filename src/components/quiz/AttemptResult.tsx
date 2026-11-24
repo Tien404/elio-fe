@@ -1,11 +1,8 @@
-import { useOfferingRoute } from '@/services/use-offering-route'
-import { Link } from 'react-router'
 import { Panel, Status, DataTable } from '@/components/ui'
 import type { AttemptView } from '@/services/quiz-contracts'
 import { formatInstant } from '@/services/presentation'
 import { quizOptionLabel } from '@/services/quiz-status'
 export function AttemptResult({ view }: { view: AttemptView }) {
-  const { prefix } = useOfferingRoute()
   const r = view.result
   return (
     <Panel title="Quiz result" icon="publish-small">
@@ -53,12 +50,6 @@ export function AttemptResult({ view }: { view: AttemptView }) {
                 : 'Finalization pending · Result processing. Only durable saved answers are used.'}
         </Status>
       )}
-      <Link
-        className="button secondary"
-        to={prefix ? `${prefix}/results` : `/results?offeringId=${view.offeringId}`}
-      >
-        {view.teacher ? 'Open gradebook' : 'My published results'}
-      </Link>
     </Panel>
   )
 }

@@ -1,7 +1,7 @@
 import { vietnamDayBoundary } from '@/services/assessment-time'
 import { useCallback, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
-import { Button, DataTable, Field, Panel, Status } from '@/components/ui'
+import { Button, DataTable, Field, Icon, Panel, Status } from '@/components/ui'
 import { LoadState, Pager, Select } from '@/components/workspace/WorkspaceUI'
 import { AccountDialog, type AccountOperation } from '@/components/personal/AccountDialog'
 import { WorkspaceAccessContext } from '@/services/workspace-access-context'
@@ -98,7 +98,10 @@ function Administration() {
               title="Accounts"
               icon="people-small"
               actions={
-                <Button onClick={() => setDialog({ kind: 'create' })}>Create account</Button>
+                <Button onClick={() => setDialog({ kind: 'create' })}>
+                  <Icon name="user-add-white" size={18} />
+                  Create account
+                </Button>
               }
             >
               <div className="filters">
@@ -142,41 +145,61 @@ function Administration() {
                       },
                       { label: 'Identifier', render: (a) => a.email },
                       { label: 'Role', render: (a) => a.account.role },
-                      { label: 'State', render: (a) => a.account.status },
                       {
-                        label: 'Create courses',
-                        render: (a) => (a.canCreateCourse ? 'Yes' : 'No'),
+                        label: 'State',
+                        render: (a) => {
+                          const active = a.account.status !== 'LOCKED'
+                          const canToggle = !apiMode || a.account.id !== identity!.me.account.id
+                          return (
+                            <div className="table-toggle-cell">
+                              <span className={`badge ${active ? 'active' : 'locked'}`}>
+                                {active ? 'Active' : 'Locked'}
+                              </span>
+                              {canToggle && (
+                                <button
+                                  type="button"
+                                  role="switch"
+                                  aria-checked={active}
+                                  aria-label={`${active ? 'Lock' : 'Unlock'} ${a.account.displayName}`}
+                                  className={`ui-switch${active ? ' is-checked' : ''}`}
+                                  onClick={() =>
+                                    setDialog({
+                                      kind: active ? 'lock' : 'unlock',
+                                      account: a,
+                                    })
+                                  }
+                                >
+                                  <span className="ui-switch-thumb" />
+                                </button>
+                              )}
+                            </div>
+                          )
+                        },
                       },
                       {
-                        label: 'Actions',
-                        render: (a) => (
-                          <div className="actions">
-                            <Button
-                              tone="secondary"
-                              onClick={() => setDialog({ kind: 'reset', account: a })}
-                            >
-                              Temporary password reset
-                            </Button>
-                            {(!apiMode || a.account.id !== identity!.me.account.id) && (
-                              <Button
-                                tone="secondary"
-                                onClick={() =>
-                                  setDialog({
-                                    kind: a.account.status === 'LOCKED' ? 'unlock' : 'lock',
-                                    account: a,
-                                  })
-                                }
-                              >
-                                {a.account.status === 'LOCKED' ? 'Unlock' : 'Lock'}
-                              </Button>
-                            )}
-                            {a.account.role === 'INSTRUCTOR' && (
-                              <Button onClick={() => setDialog({ kind: 'capability', account: a })}>
-                                Course-creation permission
-                              </Button>
-                            )}
-                          </div>
-                        ),
+                        label: 'Create courses',
+                        render: (a) => {
+                          const canToggle = a.account.role === 'INSTRUCTOR'
+                          return (
+                            <div className="table-toggle-cell">
+                              <span className={`badge ${a.canCreateCourse ? 'published' : ''}`}>
+                                {a.canCreateCourse ? 'Yes' : 'No'}
+                              </span>
+                              {canToggle && (
+                                <button
+                                  type="button"
+                                  role="switch"
+                                  aria-checked={a.canCreateCourse}
+                                  aria-label={`Toggle course creation permission for ${a.account.displayName}`}
+                                  className={`ui-switch${a.canCreateCourse ? ' is-checked' : ''}`}
+                                  onClick={() => setDialog({ kind: 'capability', account: a })}
+                                >
+                                  <span className="ui-switch-thumb" />
+                                </button>
+                              )}
+                            </div>
+                          )
+                        },
                       },
                     ]}
                   />

@@ -21,7 +21,48 @@ export function Overview() {
       <h1>Course overview</h1>
       <div className="overview-columns">
         <div>
-          <Panel title={o.title} icon="info">
+          <Panel
+            title={o.title}
+            icon="info"
+            actions={
+              (view.permissions.edit ||
+                view.permissions.publish ||
+                view.permissions.archive ||
+                view.permissions.restore) && (
+                <>
+                  {view.permissions.edit && (
+                    <Button tone="secondary" disabled={refreshing} onClick={() => setEdit(true)}>
+                      <Icon name="edit" size={20} />
+                      Edit learning information
+                    </Button>
+                  )}
+                  {(['publish', 'archive', 'restore'] as const).map(
+                    (action) =>
+                      view.permissions[action] && (
+                        <Button
+                          key={action}
+                          tone="secondary"
+                          disabled={refreshing}
+                          onClick={() => setCommand(action)}
+                        >
+                          <Icon
+                            name={
+                              action === 'archive'
+                                ? 'archive'
+                                : action === 'publish'
+                                  ? 'publish'
+                                  : 'unlock'
+                            }
+                            size={20}
+                          />
+                          {action[0].toUpperCase() + action.slice(1)} section
+                        </Button>
+                      ),
+                  )}
+                </>
+              )
+            }
+          >
             <p>
               {o.courseCode} · {o.sectionCode} · {o.semester} · <Badge value={o.status} />
             </p>
@@ -36,37 +77,6 @@ export function Overview() {
                 <Link to={`/offerings/${o.id}/team`}> Review teaching team</Link>
               </Status>
             )}
-            <div className="actions">
-              {view.permissions.edit && (
-                <Button tone="secondary" disabled={refreshing} onClick={() => setEdit(true)}>
-                  <Icon name="edit" size={20} />
-                  Edit learning information
-                </Button>
-              )}
-              {(['publish', 'archive', 'restore'] as const).map(
-                (action) =>
-                  view.permissions[action] && (
-                    <Button
-                      key={action}
-                      tone="secondary"
-                      disabled={refreshing}
-                      onClick={() => setCommand(action)}
-                    >
-                      <Icon
-                        name={
-                          action === 'archive'
-                            ? 'archive'
-                            : action === 'publish'
-                              ? 'publish'
-                              : 'unlock'
-                        }
-                        size={20}
-                      />
-                      {action[0].toUpperCase() + action.slice(1)} section
-                    </Button>
-                  ),
-              )}
-            </div>
           </Panel>
           {view.permissions.academic ? (
             <>
@@ -79,15 +89,20 @@ export function Overview() {
               />
             </>
           ) : (
-            <Panel title="Operational metadata only" icon="info">
+            <Panel
+              title="Operational metadata only"
+              icon="info"
+              actions={
+                <Link className="button secondary" to={`/offerings/${o.id}/team`}>
+                  Review teaching team
+                </Link>
+              }
+            >
               <p>
                 Administrator access includes section state, membership metadata and staffing
                 support. Private materials, announcements, submissions and grades require current
                 academic membership.
               </p>
-              <Link className="button secondary" to={`/offerings/${o.id}/team`}>
-                Review teaching team
-              </Link>
             </Panel>
           )}
         </div>
@@ -215,7 +230,15 @@ function AssignmentSummary({ id }: { id: number }) {
     ),
     result = useResource(load, `overview-assignments:${id}`)
   return (
-    <Panel title="Assignments" icon="document-small">
+    <Panel
+      title="Assignments"
+      icon="document-small"
+      actions={
+        <Link className="button secondary" to={`/offerings/${id}/assignments`}>
+          View all assignments
+        </Link>
+      }
+    >
       <LoadState {...result} retry={result.reload} />
       {result.data &&
         (result.data.items.length ? (
@@ -248,9 +271,6 @@ function AssignmentSummary({ id }: { id: number }) {
         ) : (
           <Status>No published assignments.</Status>
         ))}
-      <Link className="button secondary" to={`/offerings/${id}/assignments`}>
-        View all assignments
-      </Link>
     </Panel>
   )
 }

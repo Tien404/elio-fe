@@ -121,6 +121,7 @@ export function Assignments() {
               <DataTable
                 rows={result.data.items}
                 rowKey={(v) => v.assignment.id}
+                onRowClick={(v) => navigate(`${prefix}/assignments/${v.assignment.id}`)}
                 columns={[
                   {
                     label: 'Assignment',
@@ -171,7 +172,7 @@ export function Assignments() {
             <EmptyState
               title="No assignments found"
               description="Try a different course section or search term."
-              icon="assignments"
+              icon="notfound"
             />
           ))}
       </Panel>

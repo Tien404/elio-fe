@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useId, useState, type FormEvent } from 'react'
-import { Button, Dialog, Field } from '@/components/ui'
+import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 'react'
+import { Button, Dialog, Field, Icon } from '@/components/ui'
 import {
   ActionButton,
   Feedback,
@@ -8,6 +8,8 @@ import {
   Select,
   TextArea,
 } from '@/components/workspace/WorkspaceUI'
+import { UploadCloudIcon } from '@/components/assessment/Files'
+import { fileBadgeTone, fileExtension, formatFileSize } from '@/services/presentation'
 import type { MaterialView } from '@/services/course-contracts'
 import type { FileAsset, Resource } from '@/services/contracts'
 import { apiMode, services } from '@/services'
@@ -36,7 +38,24 @@ export function MaterialEditor({
     [page, setPage] = useState(1),
     [search, setSearch] = useState('')
   const action = useAction(),
-    upload = useAction()
+    upload = useAction(),
+    fileInputRef = useRef<HTMLInputElement>(null),
+    [dragging, setDragging] = useState(false)
+
+  async function stageMaterialFile(picked: File) {
+    setFile(picked)
+    setAsset(null)
+    upload.clear()
+    action.clear()
+    await upload.run(
+      () => services.files.stage(picked, offeringId, 'MATERIAL'),
+      (result) => {
+        setAsset(result)
+        action.clear()
+      },
+      'File uploaded. Save the material to attach it.',
+    )
+  }
   const load = useCallback(
       () => services.content.topics(offeringId, { page, search }),
       [offeringId, page, search],
@@ -188,45 +207,109 @@ export function MaterialEditor({
           )}
           {kind === 'FILE' && (
             <div className="file-uploader">
-              <Field
-                label="Material file"
-                type="file"
-                disabled={busy}
-                onChange={(e) => {
-                  setFile(e.target.files?.[0] ?? null)
-                  setAsset(null)
-                  upload.clear()
-                  action.clear()
+              <div
+                className={`upload-dropzone${dragging ? ' is-dragging' : ''}${busy ? ' is-disabled' : ''}`}
+                onDragOver={(e) => {
+                  e.preventDefault()
+                  if (!busy) setDragging(true)
                 }}
-              />
-              <p>
-                Up to 50 MB. Choose a file, then click Upload file before saving or publishing.
-                {!apiMode && ' Demo files are kept until the page reloads.'}
-              </p>
-              {file && !asset && !upload.pending && <p>File selected. Click Upload file.</p>}
-              {asset && (
-                <p>
-                  {asset.originalName} · {asset.byteSize.toLocaleString('en-US')} bytes ·{' '}
-                  {asset.state.toLowerCase()}
-                </p>
-              )}
-              <ActionButton
-                tone="secondary"
-                disabled={busy || !file || !!asset}
-                onClick={() =>
-                  file &&
-                  void upload.run(
-                    () => services.files.stage(file, offeringId, 'MATERIAL'),
-                    (result) => {
-                      setAsset(result)
-                      action.clear()
-                    },
-                    'File uploaded. Save the material to attach it.',
-                  )
-                }
+                onDragLeave={() => setDragging(false)}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  setDragging(false)
+                  if (busy) return
+                  const dropped = e.dataTransfer.files?.[0]
+                  if (dropped) void stageMaterialFile(dropped)
+                }}
               >
-                {upload.pending ? 'Uploading…' : 'Upload file'}
-              </ActionButton>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  hidden
+                  disabled={busy}
+                  onChange={(e) => {
+                    const picked = e.target.files?.[0]
+                    e.target.value = ''
+                    if (picked) void stageMaterialFile(picked)
+                  }}
+                />
+                <div className="upload-dropzone-icon">
+                  <UploadCloudIcon />
+                </div>
+                <p className="upload-dropzone-title">Choose a file or drag &amp; drop it here.</p>
+                <p className="upload-dropzone-hint">
+                  Up to 50 MB.{!apiMode && ' Demo files are kept until the page reloads.'}
+                </p>
+                <Button
+                  tone="secondary"
+                  disabled={busy}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  Browse File
+                </Button>
+              </div>
+
+              {upload.pending && file && (
+                <ul className="assessment-files upload-file-list" aria-live="polite">
+                  <li className="upload-file-card is-uploading">
+                    <span
+                      className={`upload-file-badge ${fileBadgeTone(fileExtension(file.name))}`}
+                      aria-hidden="true"
+                    >
+                      {fileExtension(file.name)}
+                    </span>
+                    <div className="upload-file-info">
+                      <strong className="upload-file-name">{file.name}</strong>
+                      <div className="upload-file-meta">
+                        <span>{formatFileSize(file.size)}</span>
+                        <span className="upload-status-uploading">
+                          <span className="status-dot pulse" />
+                          Uploading…
+                        </span>
+                      </div>
+                      <div className="upload-progress-track" aria-hidden="true">
+                        <div className="upload-progress-fill is-indeterminate" />
+                      </div>
+                    </div>
+                  </li>
+                </ul>
+              )}
+
+              {asset && (
+                <ul className="assessment-files upload-file-list">
+                  <li className="upload-file-card">
+                    <span
+                      className={`upload-file-badge ${fileBadgeTone(fileExtension(asset.originalName))}`}
+                      aria-hidden="true"
+                    >
+                      {fileExtension(asset.originalName)}
+                    </span>
+                    <div className="upload-file-info">
+                      <strong className="upload-file-name">{asset.originalName}</strong>
+                      <div className="upload-file-meta">
+                        <span>{formatFileSize(asset.byteSize)}</span>
+                        <span className="upload-status-completed">
+                          <Icon name="check" size={14} />
+                          Completed
+                        </span>
+                      </div>
+                    </div>
+                    <div className="actions">
+                      <Button
+                        tone="secondary"
+                        disabled={busy}
+                        onClick={() => {
+                          setFile(null)
+                          setAsset(null)
+                          upload.clear()
+                        }}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  </li>
+                </ul>
+              )}
             </div>
           )}
           <label className="checkbox-field">

@@ -187,10 +187,15 @@ export function EmptyState({
   description?: string
   icon?: string
 }) {
+  const isIllustration = icon === 'notfound'
   return (
     <div className="empty-state" role="status">
-      <span className="empty-state-icon">
-        <Icon name={icon} size={24} inheritColor />
+      <span className={isIllustration ? 'empty-state-illustration' : 'empty-state-icon'}>
+        {isIllustration ? (
+          <img src="/assets/notfound.webp" alt="" width={140} height={140} />
+        ) : (
+          <Icon name={icon} size={24} inheritColor />
+        )}
       </span>
       <strong>{title}</strong>
       {description && <p>{description}</p>}
@@ -320,11 +325,13 @@ export function DataTable<T>({
   columns,
   rowKey,
   className = '',
+  onRowClick,
 }: {
   rows: T[]
   columns: { label: string; render(row: T): ReactNode }[]
   rowKey(row: T): string | number
   className?: string
+  onRowClick?: (row: T) => void
 }) {
   if (!rows.length) return null
   return (
@@ -346,7 +353,31 @@ export function DataTable<T>({
         </thead>
         <tbody role="rowgroup">
           {rows.map((row) => (
-            <tr key={rowKey(row)} role="row">
+            <tr
+              key={rowKey(row)}
+              role="row"
+              className={onRowClick ? 'clickable-row' : undefined}
+              tabIndex={onRowClick ? 0 : undefined}
+              onClick={
+                onRowClick
+                  ? (e) => {
+                      if ((e.target as HTMLElement).closest('a, button, input, select, label'))
+                        return
+                      onRowClick(row)
+                    }
+                  : undefined
+              }
+              onKeyDown={
+                onRowClick
+                  ? (e) => {
+                      if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) {
+                        e.preventDefault()
+                        onRowClick(row)
+                      }
+                    }
+                  : undefined
+              }
+            >
               {columns.map((c) => (
                 <td key={c.label} role="cell">
                   <span className="table-cell-label" aria-hidden="true">

@@ -1,5 +1,5 @@
 import { ActionButton as Button } from '@/components/workspace/WorkspaceUI'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Dialog, Panel, Status, Icon } from '@/components/ui'
 import { Feedback } from '@/components/workspace/WorkspaceUI'
 import { FileUploader, ReselectFiles } from './Files'
@@ -25,7 +25,6 @@ export function SubmissionComposer({ view, changed }: { view: AssignmentView; ch
       readContext(storageKey),
     ),
     [files, setFiles] = useState<FileAsset[]>(() => readContext(storageKey)?.files ?? []),
-    [review, setReview] = useState(false),
     [reviewedVersion, setReviewedVersion] = useState(view.submission?.version ?? 0),
     action = useAction(),
     [checked, setChecked] = useState(false),
@@ -33,6 +32,19 @@ export function SubmissionComposer({ view, changed }: { view: AssignmentView; ch
   function remember(value: PreparedSubmission) {
     sessionStorage.setItem(storageKey, JSON.stringify(value))
     setPrepared(value)
+  }
+  const inFlight = useRef(false)
+  async function submit() {
+    if (inFlight.current) return
+    inFlight.current = true
+    try {
+      const request = prepared ?? (await prepare())
+      const receipt = await services.assessment.confirm(a.id, request)
+      remember({ ...request, receipt })
+      changed()
+    } finally {
+      inFlight.current = false
+    }
   }
   async function prepare() {
     const value = await services.assessment.prepare(
@@ -46,14 +58,7 @@ export function SubmissionComposer({ view, changed }: { view: AssignmentView; ch
     )
     remember(value)
     setChecked(false)
-    setReview(true)
-  }
-  async function confirm() {
-    if (!prepared) throw new Error('Review the uploaded files first.')
-    const receipt = await services.assessment.confirm(a.id, prepared)
-    remember({ ...prepared, receipt })
-    setReview(false)
-    changed()
+    return value
   }
   async function check() {
     if (!prepared) return
@@ -94,8 +99,8 @@ export function SubmissionComposer({ view, changed }: { view: AssignmentView; ch
       icon="info"
     >
       <ol className="submission-steps" aria-label="Submission steps">
-        {['Add files', 'Review', 'Submit'].map((step, index) => {
-          const current = prepared?.receipt ? 3 : prepared ? 1 : 0
+        {['Add files', 'Submit'].map((step, index) => {
+          const current = prepared?.receipt ? 2 : files.length ? 1 : 0
           return (
             <li
               key={step}
@@ -155,8 +160,8 @@ export function SubmissionComposer({ view, changed }: { view: AssignmentView; ch
               Check receipt
             </Button>
             {!prepared.receipt && (
-              <Button icon="preview" disabled={action.pending} onClick={() => setReview(true)}>
-                Review and submit
+              <Button disabled={action.pending} onClick={() => void action.run(submit)}>
+                Retry submission
               </Button>
             )}
             <Button
@@ -221,42 +226,21 @@ export function SubmissionComposer({ view, changed }: { view: AssignmentView; ch
             </Button>
           )}
           {view.canSubmit && (
-            <Button
-              icon="preview"
-              disabled={!view.canSubmit || !files.length || action.pending}
-              onClick={() => void action.run(prepare)}
-            >
-              Review submission
-            </Button>
+            <div className="actions actions-end">
+              <Button
+                icon="preview"
+                disabled={!view.canSubmit || !files.length || action.pending}
+                onClick={() => void action.run(submit)}
+              >
+                {action.pending
+                  ? 'Submitting…'
+                  : view.submission
+                    ? 'Resubmit assignment'
+                    : 'Submit assignment'}
+              </Button>
+            </div>
           )}
         </>
-      )}
-      {review && prepared && (
-        <Dialog title="Review and confirm submission" close={() => setReview(false)}>
-          <Feedback action={action} />
-          <p>
-            {a.title} · {view.group?.name ?? 'Individual submission'}
-          </p>
-          <p>{prepared.files.map((f) => f.originalName).join(', ')}</p>
-          <p>Review the selected files, then confirm to submit your assignment.</p>
-          {view.group && (
-            <Status>
-              This submission and its grade are shared with all assigned group members.
-            </Status>
-          )}
-          <div className="actions">
-            <Button tone="secondary" disabled={action.pending} onClick={() => setReview(false)}>
-              Back to review
-            </Button>
-            <Button
-              icon="complete-white"
-              disabled={action.pending}
-              onClick={() => void action.run(confirm)}
-            >
-              Confirm submission
-            </Button>
-          </div>
-        </Dialog>
       )}
       {reset && (
         <Dialog title="Start a different submission?" close={() => setReset(false)}>

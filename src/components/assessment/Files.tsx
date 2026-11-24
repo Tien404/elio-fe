@@ -1,55 +1,102 @@
 import { ActionButton as Button } from '@/components/workspace/WorkspaceUI'
-import { useState } from 'react'
-import { Field, Icon, Status } from '@/components/ui'
+import { useRef, useState } from 'react'
+import { Field, Icon } from '@/components/ui'
 import { Feedback } from '@/components/workspace/WorkspaceUI'
 import { services } from '@/services'
 import { useAction } from '@/services/use-action'
-import { downloadFile, formatFileSize } from '@/services/presentation'
+import { downloadFile, fileBadgeTone, fileExtension, formatFileSize } from '@/services/presentation'
 import type { FileAsset, FilePurpose } from '@/services/contracts'
-export function FileList({ files, remove }: { files: FileAsset[]; remove?: (id: number) => void }) {
+
+export function UploadCloudIcon() {
+  return (
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 13v8" />
+      <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
+      <path d="m8 17 4-4 4 4" />
+    </svg>
+  )
+}
+
+export function FileList({
+  files,
+  remove,
+  showCompleted = false,
+}: {
+  files: FileAsset[]
+  remove?: (id: number) => void
+  showCompleted?: boolean
+}) {
   const action = useAction()
   return (
     <>
       <Feedback action={action} />
       {files.length ? (
-        <ul className="assessment-files">
-          {files.map((f) => (
-            <li key={f.id}>
-              <span className="resource-icon">
-                <Icon name="document-small" size={22} inheritColor />
-              </span>
-              <div>
-                <strong>{f.originalName}</strong>
-                <span>{formatFileSize(f.byteSize)}</span>
-                <details className="file-details">
-                  <summary>File details</summary>
-                  <small className="hash">SHA-256: {f.sha256}</small>
-                </details>
-              </div>
-              <div className="actions">
-                <Button
-                  icon="download-dark"
-                  tone="secondary"
-                  disabled={action.pending}
-                  onClick={() => void action.run(() => downloadFile(f.id, f.originalName))}
-                >
-                  Download
-                </Button>
-                {remove && (
-                  <Button danger icon="trash-white" tone="secondary" onClick={() => remove(f.id)}>
-                    Remove
+        <ul className="assessment-files upload-file-list">
+          {files.map((f) => {
+            const ext = fileExtension(f.originalName)
+            return (
+              <li key={f.id} className="upload-file-card">
+                <span className={`upload-file-badge ${fileBadgeTone(ext)}`} aria-hidden="true">
+                  {ext}
+                </span>
+                <div className="upload-file-info">
+                  <strong className="upload-file-name">{f.originalName}</strong>
+                  <div className="upload-file-meta">
+                    <span>{formatFileSize(f.byteSize)}</span>
+                    {showCompleted && (
+                      <span className="upload-status-completed">
+                        <Icon name="check" size={14} />
+                        Completed
+                      </span>
+                    )}
+                  </div>
+                  <details className="file-details">
+                    <summary>File details</summary>
+                    <small className="hash">SHA-256: {f.sha256}</small>
+                  </details>
+                </div>
+                <div className="actions">
+                  <Button
+                    icon="download-dark"
+                    tone="secondary"
+                    disabled={action.pending}
+                    onClick={() => void action.run(() => downloadFile(f.id, f.originalName))}
+                  >
+                    Download
                   </Button>
-                )}
-              </div>
-            </li>
-          ))}
+                  {remove && (
+                    <Button
+                      danger
+                      icon="trash-white"
+                      tone="secondary"
+                      aria-label={`Remove ${f.originalName}`}
+                      onClick={() => remove(f.id)}
+                    >
+                      Remove
+                    </Button>
+                  )}
+                </div>
+              </li>
+            )
+          })}
         </ul>
       ) : (
-        <p>No files attached.</p>
+        <p className="upload-empty-note">No files attached.</p>
       )}
     </>
   )
 }
+
 export function FileUploader({
   offeringId,
   assignmentId,
@@ -65,50 +112,120 @@ export function FileUploader({
   change: (files: FileAsset[]) => void
   disabled?: boolean
 }) {
-  const [selected, setSelected] = useState<File[]>([]),
-    action = useAction(),
-    [progress, setProgress] = useState('')
-  async function upload() {
-    if (!selected.length || files.length + selected.length > 5)
-      throw new Error('Select files; at most 5 files are allowed.')
-    if (selected.some((f) => f.size < 1 || f.size > 20_000_000))
-      throw new Error('Each file must be non-empty and no larger than 20MB.')
-    const uploaded = [...files]
-    for (const file of selected) {
-      setProgress(`Uploading ${file.name}…`)
-      const asset = await services.files.stage(file, offeringId, purpose, assignmentId)
-      uploaded.push(asset)
-      change([...uploaded])
-    }
-    setSelected([])
-    setProgress('Files uploaded.')
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [dragging, setDragging] = useState(false)
+  const [uploadingQueue, setUploadingQueue] = useState<{ name: string; size: number }[]>([])
+  const action = useAction()
+
+  async function processFiles(incoming: File[]) {
+    if (!incoming.length) return
+    await action.run(async () => {
+      if (files.length + incoming.length > 5) {
+        throw new Error('At most 5 files are allowed.')
+      }
+      if (incoming.some((f) => f.size < 1 || f.size > 20_000_000)) {
+        throw new Error('Each file must be non-empty and no larger than 20 MB.')
+      }
+      setUploadingQueue(incoming.map((f) => ({ name: f.name, size: f.size })))
+      const uploaded = [...files]
+      try {
+        for (const file of incoming) {
+          const asset = await services.files.stage(file, offeringId, purpose, assignmentId)
+          uploaded.push(asset)
+          change([...uploaded])
+          setUploadingQueue((prev) => prev.filter((item) => item.name !== file.name))
+        }
+      } finally {
+        setUploadingQueue([])
+      }
+    })
   }
+
+  const isLocked = disabled || action.pending || files.length >= 5
+
   return (
     <fieldset className="assessment-upload" disabled={disabled || action.pending}>
       <legend>
         {purpose === 'SUBMISSION' ? 'Submission files' : 'Assignment attachments'} · Up to 5 files ·
-        20MB each
+        20 MB each
       </legend>
-      <FileList files={files} remove={(id) => change(files.filter((f) => f.id !== id))} />
-      <Field
-        label="Select files"
-        type="file"
-        multiple
-        onChange={(e) => {
-          setSelected(Array.from(e.target.files ?? []))
-          action.clear()
+
+      <div
+        className={`upload-dropzone${dragging ? ' is-dragging' : ''}${isLocked ? ' is-disabled' : ''}`}
+        onDragOver={(e) => {
+          e.preventDefault()
+          if (!isLocked) setDragging(true)
         }}
-      />
-      {selected.length > 0 && <p>{selected.map((f) => f.name).join(', ')}</p>}
-      <Button
-        tone="secondary"
-        disabled={!selected.length || action.pending}
-        onClick={() => void action.run(upload)}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault()
+          setDragging(false)
+          if (isLocked) return
+          const dropped = Array.from(e.dataTransfer.files ?? [])
+          void processFiles(dropped)
+        }}
       >
-        {action.pending ? 'Uploading…' : 'Upload selected files'}
-      </Button>
+        <input
+          ref={inputRef}
+          type="file"
+          multiple
+          hidden
+          disabled={isLocked}
+          onChange={(e) => {
+            const picked = Array.from(e.target.files ?? [])
+            e.target.value = ''
+            void processFiles(picked)
+          }}
+        />
+        <div className="upload-dropzone-icon">
+          <UploadCloudIcon />
+        </div>
+        <p className="upload-dropzone-title">Choose a file or drag &amp; drop it here.</p>
+        <p className="upload-dropzone-hint">
+          {files.length >= 5
+            ? 'Maximum of 5 files reached.'
+            : `Up to 5 files, 20 MB each (${5 - files.length} remaining).`}
+        </p>
+        <Button tone="secondary" disabled={isLocked} onClick={() => inputRef.current?.click()}>
+          Browse Files
+        </Button>
+      </div>
+
       <Feedback action={action} />
-      {progress && <Status>{progress}</Status>}
+
+      {uploadingQueue.length > 0 && (
+        <ul className="assessment-files upload-file-list" aria-live="polite">
+          {uploadingQueue.map((item) => {
+            const ext = fileExtension(item.name)
+            return (
+              <li key={item.name} className="upload-file-card is-uploading">
+                <span className={`upload-file-badge ${fileBadgeTone(ext)}`} aria-hidden="true">
+                  {ext}
+                </span>
+                <div className="upload-file-info">
+                  <strong className="upload-file-name">{item.name}</strong>
+                  <div className="upload-file-meta">
+                    <span>{formatFileSize(item.size)}</span>
+                    <span className="upload-status-uploading">
+                      <span className="status-dot pulse" />
+                      Uploading…
+                    </span>
+                  </div>
+                  <div className="upload-progress-track" aria-hidden="true">
+                    <div className="upload-progress-fill is-indeterminate" />
+                  </div>
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+
+      <FileList
+        files={files}
+        showCompleted
+        remove={disabled ? undefined : (id) => change(files.filter((f) => f.id !== id))}
+      />
     </fieldset>
   )
 }

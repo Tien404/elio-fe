@@ -62,7 +62,8 @@
     "quiz-next": "arrow-right",
     "quiz-submit": "tick-circle",
     "transfer-white": "arrow-swap-horizontal",
-    "settings": "setting-2"
+    "settings": "setting-2",
+    "catalog": "layer"
   },
   "summaryArtwork": "Custom duotone SVG artwork restored from the supplied summary reference"
 }

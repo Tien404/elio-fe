@@ -1,7 +1,7 @@
 import { CatalogSubjectDialog } from '@/components/workspace/CatalogSubjectDialog'
 import { useCallback, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router'
-import { Button, DataTable, Field, Panel, Status } from '@/components/ui'
+import { Button, DataTable, EmptyState, Field, Panel } from '@/components/ui'
 import { LoadState, Pager } from '@/components/workspace/WorkspaceUI'
 import { services } from '@/services'
 import { useAuth } from '@/services/auth-context'
@@ -20,7 +20,7 @@ export function Catalog() {
       <h1>Course catalog</h1>
       <Panel
         title="Catalog subjects"
-        icon="book-small"
+        icon="catalog"
         actions={
           identity!.me.account.role === 'ADMIN' && (
             <Button onClick={() => setCreating(true)}>Create catalog subject</Button>
@@ -39,7 +39,11 @@ export function Catalog() {
         {result.data && (
           <>
             {!result.data.items.length ? (
-              <Status>No catalog subjects match your search.</Status>
+              <EmptyState
+                icon="notfound"
+                title="No catalog subjects found"
+                description="No catalog subjects match your search."
+              />
             ) : (
               <DataTable
                 rows={result.data.items}
@@ -99,7 +103,7 @@ export function CatalogDetail() {
       <h1>Catalog subject</h1>
       <LoadState {...result} retry={result.reload} />
       {result.data && (
-        <Panel title={result.data.courseName} icon="book-small">
+        <Panel title={result.data.courseName} icon="catalog">
           <p>
             {result.data.courseCode} · {result.data.credits} credits
           </p>

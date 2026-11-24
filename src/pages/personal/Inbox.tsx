@@ -151,7 +151,7 @@ export function Inbox() {
               <EmptyState
                 title="You're all caught up"
                 description="No notifications match these filters."
-                icon="notifications"
+                icon={search || state !== 'ALL' || offeringId ? 'notfound' : 'notifications'}
               />
             )}
             <Pager

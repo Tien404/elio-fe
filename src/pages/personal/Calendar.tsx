@@ -169,7 +169,7 @@ export function Calendar() {
               <EmptyState
                 title="No activities scheduled"
                 description="Try a different date range or course section."
-                icon="calendar"
+                icon="notfound"
               />
             )}
             {display === 'list' && (

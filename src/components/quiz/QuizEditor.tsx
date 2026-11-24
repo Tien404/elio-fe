@@ -251,44 +251,6 @@ export function QuizEditor({
             value={input.durationMinutes}
             onChange={(e) => update('durationMinutes', Number(e.target.value))}
           />
-          {!published && (
-            <div className="form-grid">
-              <Field
-                label="Total to distribute across questions"
-                type="number"
-                min={0.01}
-                step={0.01}
-                value={distributionTotal}
-                onChange={(e) => setDistributionTotal(Number(e.target.value))}
-              />
-              <Button
-                tone="secondary"
-                disabled={
-                  !input.questions.length ||
-                  !Number.isFinite(distributionTotal) ||
-                  Math.round(distributionTotal * 100) < input.questions.length
-                }
-                onClick={() => {
-                  const cents = Math.round(distributionTotal * 100),
-                    base = Math.floor(cents / input.questions.length)
-                  update(
-                    'questions',
-                    input.questions.map((q, i) => ({
-                      ...q,
-                      points: (base + (i < cents % input.questions.length ? 1 : 0)) / 100,
-                    })),
-                  )
-                }}
-              >
-                Distribute points equally
-              </Button>
-            </div>
-          )}
-          <Field
-            label="Maximum score · sum of question points"
-            readOnly
-            value={sumQuizPoints(input.questions.map((q) => q.points))}
-          />
         </div>
       </fieldset>
       <fieldset className="quiz-question-picker" disabled={action.pending || published}>
@@ -380,6 +342,46 @@ export function QuizEditor({
           ))}
         </ol>
       </fieldset>
+      <div className="quiz-scoring-summary">
+        {!published && (
+          <div className="quiz-distribute-row">
+            <Field
+              label="Total to distribute across questions"
+              type="number"
+              min={0.01}
+              step={0.01}
+              value={distributionTotal}
+              onChange={(e) => setDistributionTotal(Number(e.target.value))}
+            />
+            <Button
+              tone="secondary"
+              disabled={
+                !input.questions.length ||
+                !Number.isFinite(distributionTotal) ||
+                Math.round(distributionTotal * 100) < input.questions.length
+              }
+              onClick={() => {
+                const cents = Math.round(distributionTotal * 100),
+                  base = Math.floor(cents / input.questions.length)
+                update(
+                  'questions',
+                  input.questions.map((q, i) => ({
+                    ...q,
+                    points: (base + (i < cents % input.questions.length ? 1 : 0)) / 100,
+                  })),
+                )
+              }}
+            >
+              Distribute points equally
+            </Button>
+          </div>
+        )}
+        <Field
+          label="Maximum score · sum of question points"
+          readOnly
+          value={sumQuizPoints(input.questions.map((q) => q.points))}
+        />
+      </div>
       <div className="actions">
         <Button icon="cancel-dark" tone="secondary" disabled={action.pending} onClick={close}>
           Cancel

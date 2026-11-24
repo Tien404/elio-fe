@@ -123,6 +123,7 @@ export function Quizzes() {
               <DataTable
                 rows={result.data.items}
                 rowKey={(v) => v.quiz.id}
+                onRowClick={(v) => navigate(`${prefix}/quizzes/${v.quiz.id}`)}
                 columns={[
                   {
                     label: 'Quiz',
@@ -163,7 +164,7 @@ export function Quizzes() {
             <EmptyState
               title="No quizzes found"
               description="Try a different course section or search term."
-              icon="quizzes"
+              icon="notfound"
             />
           ))}
       </Panel>

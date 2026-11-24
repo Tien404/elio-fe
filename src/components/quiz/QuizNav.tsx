@@ -16,26 +16,11 @@ export function QuizNav({ view }: { view: QuizView }) {
           Quiz details
         </NavLink>
         {view.teacher && (
-          <>
-            <NavLink to={`${prefix}/quizzes/${view.quiz.id}/attempts`}>
-              <Icon name="results" size={18} inheritColor />
-              Attempts and results
-            </NavLink>
-            <NavLink
-              to={
-                prefix
-                  ? `${prefix}/quizzes/question-bank`
-                  : `/question-bank?offeringId=${view.quiz.offeringId}`
-              }
-            >
-              <Icon name="question-bank" size={18} inheritColor />
-              Question bank
-            </NavLink>
-          </>
+          <NavLink to={`${prefix}/quizzes/${view.quiz.id}/attempts`}>
+            <Icon name="results" size={18} inheritColor />
+            Attempts and results
+          </NavLink>
         )}
-        <NavLink to={prefix ? `${prefix}/results` : `/results?offeringId=${view.quiz.offeringId}`}>
-          {view.teacher ? 'Gradebook' : 'My results'}
-        </NavLink>
       </nav>
     </>
   )

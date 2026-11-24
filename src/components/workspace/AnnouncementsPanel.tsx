@@ -98,13 +98,19 @@ export function AnnouncementsPanel({
                     }
                   }}
                 >
-                  <h3>{item.title}</h3>
-                  <p>
-                    <Badge value={item.status} />{' '}
-                    {item.hasUnpublishedChanges && <Badge value="DRAFT_CHANGES" />}
-                    {item.publishedAt ? formatInstant(item.publishedAt) : 'Not published'}
+                  <div className="announcement-header">
+                    <h3>{item.title}</h3>
+                    <div className="announcement-meta">
+                      {item.status !== 'PUBLISHED' && <Badge value={item.status} />}
+                      {item.hasUnpublishedChanges && <Badge value="DRAFT_CHANGES" />}
+                      <span>
+                        {item.publishedAt ? formatInstant(item.publishedAt) : 'Not published'}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="announcement-excerpt">
+                    {item.body.length > 180 ? `${item.body.slice(0, 180)}…` : item.body}
                   </p>
-                  <p>{item.body.length > 180 ? `${item.body.slice(0, 180)}…` : item.body}</p>
                   {hasManageActions && (
                     <div
                       className="actions"

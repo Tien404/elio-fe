@@ -79,11 +79,6 @@ function ResultsDetail() {
       value={result.error ? { error: result.error, retry: result.reload } : undefined}
     >
       <div className="course-workspace">
-        {!fixedId && !!offeringId && (
-          <div className="breadcrumb">
-            <Link to="/results">All course results</Link>
-          </div>
-        )}
         <PageHeader title={teacher ? 'Class gradebook' : 'My results'} />
         {!teacher && !result.error && view?.rows.items[0] && (
           <Panel title="Overall result" icon="publish-small">

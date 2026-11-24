@@ -77,10 +77,17 @@ export function MvpSubmissionComposer({
     try {
       let request = prepared
       if (!request) {
-        if (!reviewed || reviewed.groupId !== groupId) return
+        if (!files.length) return
+        if (reviewed && reviewed.groupId !== groupId) {
+          throw new Error('Your group changed. Select your submission files again.')
+        }
         request = await services.assessment.prepare(
           id,
-          { expectedVersion: reviewed.version, groupId, fileIds: files.map((f) => f.id) },
+          {
+            expectedVersion: reviewed?.version ?? version,
+            groupId,
+            fileIds: files.map((f) => f.id),
+          },
           crypto.randomUUID(),
         )
         // Save the exact command before sending it. A reload can then check or replay it.
@@ -265,35 +272,25 @@ export function MvpSubmissionComposer({
               files={files}
               change={(next) => {
                 setFiles(next)
-                setReviewed(null)
+                setReviewed({ version, groupId })
                 action.clear()
               }}
               disabled={!view.canSubmit || action.pending}
             />
           )}
-          {view.canSubmit && files.length > 0 && (
-            <>
+          {view.canSubmit && (
+            <div className="actions actions-end">
               <ActionButton
-                disabled={!view.canSubmit || action.pending}
-                onClick={() => setReviewed({ version, groupId })}
+                disabled={action.pending || !files.length}
+                onClick={() => void action.run(confirm)}
               >
-                Review files
+                {action.pending
+                  ? 'Submitting…'
+                  : view.submission
+                    ? 'Resubmit assignment'
+                    : 'Submit assignment'}
               </ActionButton>
-              {reviewed?.groupId === groupId && reviewed && (
-                <>
-                  <p>
-                    {files.map((f) => f.originalName).join(', ')} · Next version{' '}
-                    {reviewed.version + 1}
-                  </p>
-                  <ActionButton
-                    disabled={!view.canSubmit || action.pending}
-                    onClick={() => void action.run(confirm)}
-                  >
-                    Confirm submission
-                  </ActionButton>
-                </>
-              )}
-            </>
+            </div>
           )}
         </>
       )}

@@ -76,10 +76,10 @@ export function TeamDialog({
         <Feedback action={targetError ? { ...action, error: null } : action} review={review} />
         <p className="form-description">
           {mode === 'transfer'
-            ? `Current lead: ${view.lead?.displayName ?? 'Unavailable'}. The new lead gains all lead responsibilities; the previous lead becomes a co-instructor. Exactly one lead remains.`
+            ? `Current lead: ${view.lead?.displayName ?? 'Unavailable'}. The new lead gains all lead responsibilities; the previous lead becomes a co-instructor.`
             : mode === 'remove'
               ? 'Current access is revoked immediately. Historical submissions, grades and teaching history remain unchanged.'
-              : 'Select an eligible active instructor. Team membership does not grant global course creation capability.'}
+              : 'Select an eligible active instructor.'}
         </p>
         {view.permissions.repairLead && <StatusRepair />}
         {mode === 'add' ? (

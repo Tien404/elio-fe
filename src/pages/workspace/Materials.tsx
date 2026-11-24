@@ -375,7 +375,7 @@ export function Materials() {
                                 ? 'Reading'
                                 : material.resource.kind === 'FILE'
                                   ? 'File'
-                                  : 'External link'}
+                                  : 'Link'}
                               {material.mandatory ? ' · Required' : ''}
                             </p>
                           </div>
@@ -394,7 +394,7 @@ export function Materials() {
                   <EmptyState
                     title="No materials found"
                     description="Try another topic or search term."
-                    icon="document-small"
+                    icon="notfound"
                   />
                 )}
                 <Pager value={result.data} change={setPage} />

@@ -47,7 +47,86 @@ export function QuizDetail() {
         >
           <div className={result.error ? 'offering-content permission-lost' : 'offering-content'}>
             <QuizNav view={view} />
-            <Panel title={view.quiz.title} icon="book-small">
+            <Panel
+              title={view.quiz.title}
+              icon="book-small"
+              actions={
+                view.teacher ? (
+                  <>
+                    {view.writable && (
+                      <>
+                        <Button
+                          icon="edit"
+                          tone="secondary"
+                          disabled={view.scheduleLocked}
+                          onClick={() => setEdit(true)}
+                        >
+                          {view.quiz.status === 'DRAFT' ? 'Edit quiz' : 'Edit schedule'}
+                        </Button>
+                        {view.quiz.status === 'DRAFT' && (
+                          <Button
+                            icon="publish-small"
+                            tone="secondary"
+                            onClick={() =>
+                              setTransition({ kind: 'publish', version: view.quiz.version })
+                            }
+                          >
+                            Publish quiz
+                          </Button>
+                        )}
+                        <Button
+                          icon="archive-white"
+                          danger
+                          onClick={() =>
+                            setTransition({ kind: 'archive', version: view.quiz.version })
+                          }
+                        >
+                          Archive quiz
+                        </Button>
+                      </>
+                    )}
+                    <Button icon="preview" tone="secondary" onClick={() => setPreview(true)}>
+                      Preview
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    {view.attemptId ? (
+                      <Link className="button primary" to={`${attemptPath}/${view.attemptId}`}>
+                        View my attempt
+                      </Link>
+                    ) : view.canStart ? (
+                      <Button icon="quiz-next" onClick={() => setStart(true)}>
+                        Start quiz…
+                      </Button>
+                    ) : null}
+                    {view.attemptId && view.canStart && (
+                      <Button icon="quiz-next" onClick={() => setStart(true)}>
+                        Start or resume attempt…
+                      </Button>
+                    )}
+                    {action.error && (
+                      <Button
+                        icon="refresh"
+                        tone="secondary"
+                        disabled={action.pending}
+                        onClick={() =>
+                          void action.run(
+                            () => services.quiz.own(view.quiz.id),
+                            (v) => {
+                              if (v) navigate(`${attemptPath}/${v.attempt.id}`)
+                            },
+                            'Existing attempt checked. If none exists, review the start window before starting.',
+                          )
+                        }
+                      >
+                        Check existing attempt
+                      </Button>
+                    )}
+                  </>
+                )
+              }
+            >
               <p className="activity-meta">
                 <Badge value={view.quiz.status} /> · {view.quiz.questionCount} questions ·{' '}
                 {view.quiz.maxScore} points · {view.weight}% weight ·{' '}
@@ -82,61 +161,10 @@ export function QuizDetail() {
                 </p>
               )}
               <Feedback action={action} />
-              {view.teacher ? (
-                <div className="actions">
-                  {view.writable && (
-                    <>
-                      <Button
-                        icon="edit"
-                        tone="secondary"
-                        disabled={view.scheduleLocked}
-                        onClick={() => setEdit(true)}
-                      >
-                        {view.quiz.status === 'DRAFT' ? 'Edit quiz' : 'Edit schedule'}
-                      </Button>
-                      {view.quiz.status === 'DRAFT' && (
-                        <Button
-                          icon="publish-small"
-                          tone="secondary"
-                          onClick={() =>
-                            setTransition({ kind: 'publish', version: view.quiz.version })
-                          }
-                        >
-                          Publish quiz
-                        </Button>
-                      )}
-                      <Button
-                        icon="archive-white"
-                        danger
-                        onClick={() =>
-                          setTransition({ kind: 'archive', version: view.quiz.version })
-                        }
-                      >
-                        Archive quiz
-                      </Button>
-                    </>
-                  )}
-                  <Button icon="preview" tone="secondary" onClick={() => setPreview(true)}>
-                    Preview
-                  </Button>
-                </div>
-              ) : (
-                <>
-                  <div className="actions">
-                    {view.attemptId ? (
-                      <Link className="button primary" to={`${attemptPath}/${view.attemptId}`}>
-                        View my attempt
-                      </Link>
-                    ) : view.canStart ? (
-                      <Button icon="quiz-next" onClick={() => setStart(true)}>
-                        Start quiz…
-                      </Button>
-                    ) : null}
-                    {view.attemptId && view.canStart && (
-                      <Button icon="quiz-next" onClick={() => setStart(true)}>
-                        Start or resume attempt…
-                      </Button>
-                    )}
+              {!view.teacher &&
+                ((view.ownAttempts?.filter((a) => a.id !== view.attemptId).length ?? 0) > 0 ||
+                  (view.countedScore !== null && view.countedScore !== undefined)) && (
+                  <div className="actions quiz-past-attempts">
                     {view.ownAttempts
                       ?.filter((a) => a.id !== view.attemptId)
                       .map((a) => (
@@ -151,27 +179,8 @@ export function QuizDetail() {
                         {view.gradingMethod?.replaceAll('_', ' ').toLowerCase()}
                       </p>
                     )}
-                    {action.error && (
-                      <Button
-                        icon="refresh"
-                        tone="secondary"
-                        disabled={action.pending}
-                        onClick={() =>
-                          void action.run(
-                            () => services.quiz.own(view.quiz.id),
-                            (v) => {
-                              if (v) navigate(`${attemptPath}/${v.attempt.id}`)
-                            },
-                            'Existing attempt checked. If none exists, review the start window before starting.',
-                          )
-                        }
-                      >
-                        Check existing attempt
-                      </Button>
-                    )}
                   </div>
-                </>
-              )}
+                )}
             </Panel>
             {edit && (
               <QuizEditor
@@ -223,7 +232,24 @@ export function QuizDetail() {
                   {formatInstant(view.quiz.closeAt)}. Reloading resumes the original attempt and end
                   time.
                 </p>
-                <div className="actions">
+                <div className="actions dialog-actions-split">
+                  <Button
+                    icon="refresh"
+                    tone="secondary"
+                    className="button secondary dialog-action-left"
+                    disabled={action.pending}
+                    onClick={() =>
+                      void action.run(
+                        () => services.quiz.own(view.quiz.id),
+                        (v) => {
+                          if (v) navigate(`${attemptPath}/${v.attempt.id}`)
+                        },
+                        'Existing attempt checked.',
+                      )
+                    }
+                  >
+                    Check existing attempt
+                  </Button>
                   <Button
                     icon="cancel-dark"
                     tone="secondary"
@@ -243,22 +269,6 @@ export function QuizDetail() {
                     }
                   >
                     Start attempt
-                  </Button>
-                  <Button
-                    icon="refresh"
-                    tone="secondary"
-                    disabled={action.pending}
-                    onClick={() =>
-                      void action.run(
-                        () => services.quiz.own(view.quiz.id),
-                        (v) => {
-                          if (v) navigate(`${attemptPath}/${v.attempt.id}`)
-                        },
-                        'Existing attempt checked.',
-                      )
-                    }
-                  >
-                    Check existing attempt
                   </Button>
                 </div>
               </Dialog>

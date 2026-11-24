@@ -21,8 +21,7 @@ export function QuizAttempt() {
   const accessLost =
     result.error instanceof ServiceError && [401, 403, 404].includes(result.error.status)
   return (
-    <div className="course-workspace">
-      <h1>Quiz attempt</h1>
+    <div className="course-workspace quiz-attempt-page">
       <LoadState
         loading={result.loading && !result.data}
         error={result.error}
@@ -85,51 +84,175 @@ function AttemptWorkspace({
   useEffect(() => {
     if (requiresSessionRefresh(state.error)) void refresh()
   }, [state.error, refresh])
+
+  const totalQuestions = view.attempt.questions.length
+  const answeredCount = Object.keys(durable).length
+  const unansweredCount = totalQuestions - answeredCount
+  const progressPercent =
+    totalQuestions > 0 ? Math.round((answeredCount / totalQuestions) * 100) : 0
+  const isUrgent = active && seconds > 0 && seconds <= 300
+
   const rows = view.attempt.questions.map((q) => ({
     q,
     saved: durable[String(q.id)] ?? '',
     local: state.local[String(q.id)] ?? '',
   }))
+
   return (
-    <>
-      <div className="breadcrumb">
+    <div className="quiz-attempt-workspace">
+      <nav className="breadcrumb" aria-label="Breadcrumb">
         <Link to={`${prefix}/quizzes/${view.attempt.quizId}`}>{view.quizTitle}</Link> / Attempt{' '}
-        {view.attempt.id}
-      </div>
-      <Panel title={view.quizTitle} icon="book-small">
-        <div className={`quiz-timer ${active ? 'is-active' : ''}`} role="timer" aria-live="off">
-          <Icon name="quizzes" size={22} />
-          {active
-            ? `In progress · ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')} remaining`
-            : 'Sealed / time ended · Only saved answers are finalized'}
+        {view.attempt.attemptNo ?? view.attempt.id}
+      </nav>
+      <header className="quiz-attempt-page-header">
+        <h1>{view.quizTitle}</h1>
+        {active && (
+          <div className="quiz-attempt-header-actions">
+            <div
+              className={`quiz-timer-card is-active ${isUrgent ? 'is-urgent' : ''}`}
+              role="timer"
+              aria-live="off"
+            >
+              <div className="quiz-timer-icon">
+                <Icon name="quizzes" size={20} />
+              </div>
+              <div className="quiz-timer-content">
+                <span className="quiz-timer-label">
+                  {isUrgent ? 'Time running out' : 'Time remaining'}
+                </span>
+                <span className="quiz-timer-value">
+                  {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}
+                </span>
+              </div>
+            </div>
+
+            {!view.teacher && view.canAnswer && (
+              <Button
+                icon="complete-white"
+                disabled={state.sealing || state.paused || otherTab || accessPaused}
+                onClick={() => setSeal(true)}
+              >
+                Submit attempt
+              </Button>
+            )}
+          </div>
+        )}
+      </header>
+      {/* Sealed Results View */}
+      {view.attempt.status === 'SEALED' && <AttemptResult view={view} />}
+      {/* Active Exam Layout Grid */}
+      <div className="quiz-attempt-grid">
+        {/* Main: Active Question */}
+        <div className="quiz-attempt-main">
+          {q ? (
+            <div className="quiz-question-box">
+              <div className="quiz-question-card-header">
+                <div className="quiz-question-badge">
+                  Question {index + 1} <span>of {totalQuestions}</span>
+                </div>
+                <div className="quiz-question-save-status" role="status">
+                  {active && state.saving[q.id] ? (
+                    <span className="status-saving">
+                      <span className="status-dot pulse" /> Saving…
+                    </span>
+                  ) : active && state.local[q.id] ? (
+                    state.paused ? (
+                      <span className="status-error">Save failed · Local kept</span>
+                    ) : (
+                      <span className="status-unsaved">Unsaved changes</span>
+                    )
+                  ) : durable[q.id] ? (
+                    <span className="status-saved">
+                      <Icon name="check" size={14} />
+                      {(active && !view.teacher ? state.view.savedAt[q.id] : view.savedAt[q.id])
+                        ? `Saved · ${formatInstant((active && !view.teacher ? state.view : view).savedAt[q.id])}`
+                        : 'Saved'}
+                    </span>
+                  ) : (
+                    <span className="status-unanswered">Unanswered</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="quiz-question-prompt">{q.prompt}</div>
+
+              <fieldset className="quiz-answer-options" disabled={!canEdit || otherTab}>
+                <legend className="sr-only">Select one answer</legend>
+                {Object.entries(q.options).map(([key, text]) => {
+                  const isSelected = choice === key
+                  return (
+                    <label
+                      key={key}
+                      className={`quiz-option-card${isSelected ? ' is-selected' : ''}`}
+                    >
+                      <input
+                        type="radio"
+                        name={`attempt-question-${q.id}`}
+                        value={key}
+                        checked={isSelected}
+                        onChange={() => {
+                          queue.edit(q.id, key)
+                          if (apiMode) queue.enqueue(q.id)
+                        }}
+                      />
+                      <span className="quiz-option-text">
+                        {quizOptionLabel(key)}. {text}
+                      </span>
+                    </label>
+                  )
+                })}
+              </fieldset>
+
+              <div className="quiz-question-footer">
+                <NavigationButton
+                  direction="previous"
+                  label="Previous question"
+                  disabled={index === 0}
+                  onClick={() => setIndex((i) => i - 1)}
+                />
+                <div className="quiz-question-step-count">
+                  {index + 1} of {totalQuestions}
+                </div>
+                <NavigationButton
+                  direction="next"
+                  label="Next question"
+                  disabled={index >= totalQuestions - 1}
+                  onClick={() => setIndex((i) => i + 1)}
+                />
+              </div>
+            </div>
+          ) : (
+            <Panel title="No questions available" icon="info">
+              <p>There are no questions in this quiz attempt.</p>
+            </Panel>
+          )}
         </div>
-        <details className="attempt-timing">
-          <summary>Attempt details</summary>
-          <p>
-            {view.attempt.attemptNo ? `Attempt ${view.attempt.attemptNo}` : 'This attempt'} ·{' '}
-            {view.student.displayName}
-          </p>
-          <p>
-            Started: {formatInstant(view.attempt.startedAt)}
-            <br />
-            Closes: {formatInstant(view.closeAt)} · Duration: {view.durationMinutes} minutes
-            <br />
-            Ends: {formatInstant(view.attempt.endAt)}
-          </p>
-        </details>
-      </Panel>
-      {q && (
-        <Panel title={`Question ${index + 1} of ${view.attempt.questions.length}`} icon="info">
-          {view.attempt.questions.length > 1 && (
+
+        {/* Sidebar: Question Navigator & Exam Info */}
+        <aside className="quiz-attempt-sidebar">
+          {/* Question Navigator Card */}
+          <div className="quiz-sidebar-card">
+            <div className="quiz-sidebar-header">
+              <h2>Questions</h2>
+              <span className="quiz-sidebar-count">
+                {answeredCount}/{totalQuestions}
+              </span>
+            </div>
+
+            <div className="quiz-progress-track" aria-hidden="true">
+              <div className="quiz-progress-fill" style={{ width: `${progressPercent}%` }} />
+            </div>
+
             <nav className="quiz-question-grid" aria-label="Question navigator">
               {view.attempt.questions.map((item, i) => {
                 const answered = !!((active ? state.local[item.id] : undefined) ?? durable[item.id])
+                const isCurrent = i === index
                 return (
                   <button
                     key={item.id}
                     type="button"
-                    className={`quiz-question-pill${i === index ? ' is-current' : ''}${answered ? ' is-answered' : ''}`}
-                    aria-current={i === index ? 'step' : undefined}
+                    className={`quiz-question-pill${isCurrent ? ' is-current' : ''}${answered ? ' is-answered' : ''}`}
+                    aria-current={isCurrent ? 'step' : undefined}
                     aria-label={`Question ${i + 1}${answered ? ', answered' : ', unanswered'}`}
                     onClick={() => setIndex(i)}
                   >
@@ -138,91 +261,69 @@ function AttemptWorkspace({
                 )
               })}
             </nav>
-          )}
-          <p className="material-body">{q.prompt}</p>
-          <fieldset className="quiz-answer-options" disabled={!canEdit || otherTab}>
-            <legend>Select one answer</legend>
-            {Object.entries(q.options).map(([key, text]) => (
-              <label key={key}>
-                <input
-                  type="radio"
-                  name={`attempt-question-${q.id}`}
-                  value={key}
-                  checked={choice === key}
-                  onChange={() => {
-                    queue.edit(q.id, key)
-                    if (apiMode) queue.enqueue(q.id)
-                  }}
-                />
-                <span>
-                  {quizOptionLabel(key)} · {text}
-                </span>
-              </label>
-            ))}
-          </fieldset>
-          <div className="actions quiz-question-controls">
-            <NavigationButton
-              direction="previous"
-              label="Previous question"
-              disabled={index === 0}
-              onClick={() => setIndex((i) => i - 1)}
-            />
-            <NavigationButton
-              direction="next"
-              label="Next question"
-              disabled={index >= view.attempt.questions.length - 1}
-              onClick={() => setIndex((i) => i + 1)}
-            />
+
+            <div className="quiz-navigator-legend">
+              <span className="legend-item">
+                <span className="legend-indicator current" /> Current
+              </span>
+              <span className="legend-item">
+                <span className="legend-indicator answered" /> Answered
+              </span>
+              <span className="legend-item">
+                <span className="legend-indicator unanswered" /> Unanswered
+              </span>
+            </div>
           </div>
-          <p role="status">
-            {active && state.saving[q.id]
-              ? 'Saving answer…'
-              : active && state.local[q.id]
-                ? state.paused
-                  ? 'Save failed · Local answer kept'
-                  : 'Unsaved answer'
-                : durable[q.id]
-                  ? (active && !view.teacher ? state.view.savedAt[q.id] : view.savedAt[q.id])
-                    ? `Saved · ${formatInstant((active && !view.teacher ? state.view : view).savedAt[q.id])}`
-                    : 'Saved'
-                  : 'Unanswered'}
-          </p>
-        </Panel>
-      )}
-      <Panel title="Answer status" icon="info">
-        <Feedback action={action} />
-        {state.error && (
-          <Status error>{state.error.message} Local choices are kept. Do not retry blindly.</Status>
-        )}
-        {otherTab && (
-          <Status error>
-            Another tab changed the saved attempt. Review saved answers before continuing.
-          </Status>
-        )}
-        <p>
-          {state.pending} queued/saving · {Object.keys(durable).length} saved answers ·{' '}
-          {view.attempt.questions.length - Object.keys(durable).length} unanswered
-        </p>
-        <p>Only saved answers will be submitted. Refreshing does not extend the time limit.</p>
-        <div className="actions">
-          <Button icon="preview" tone="secondary" onClick={() => setReview(true)}>
-            Review answers
-          </Button>
-          {!view.teacher && active && view.canAnswer && (
-            <Button
-              icon="quiz-submit"
-              disabled={state.sealing || state.paused || otherTab || accessPaused}
-              onClick={() => setSeal(true)}
-            >
-              Submit early
-            </Button>
-          )}
-          <Button icon="refresh" tone="secondary" onClick={reload}>
-            Refresh
-          </Button>
-        </div>
-      </Panel>
-      {view.attempt.status === 'SEALED' && <AttemptResult view={view} />}{' '}
+
+          {/* Sync & Actions Card */}
+          <div className="quiz-sidebar-card">
+            <Feedback action={action} />
+            {state.error && (
+              <Status error>
+                {state.error.message} Local choices are kept. Do not retry blindly.
+              </Status>
+            )}
+            {otherTab && (
+              <Status error>
+                Another tab changed the saved attempt. Review saved answers before continuing.
+              </Status>
+            )}
+
+            <div className="quiz-sync-status-box">
+              <div className="quiz-sync-row">
+                <span className="quiz-sync-label">Server sync</span>
+                <span className="quiz-sync-val">
+                  {state.pending > 0 ? `${state.pending} saving…` : 'All answers saved'}
+                </span>
+              </div>
+              <div className="quiz-sync-row">
+                <span className="quiz-sync-label">Unanswered</span>
+                <span className="quiz-sync-val">{unansweredCount}</span>
+              </div>
+            </div>
+
+            <div className="quiz-sidebar-actions">
+              <Button icon="preview" tone="secondary" onClick={() => setReview(true)}>
+                Review all answers
+              </Button>
+              <Button icon="refresh" tone="secondary" onClick={reload}>
+                Refresh status
+              </Button>
+            </div>
+
+            <details className="attempt-timing">
+              <summary>Timing details</summary>
+              <p>
+                Started: {formatInstant(view.attempt.startedAt)}
+                <br />
+                Closes: {formatInstant(view.closeAt)}
+                <br />
+                Ends: {formatInstant(view.attempt.endAt)}
+              </p>
+            </details>
+          </div>
+        </aside>
+      </div>{' '}
       {review && (
         <Dialog wide title="Review saved and local answers" close={() => setReview(false)}>
           <Feedback action={action} />
@@ -356,6 +457,6 @@ function AttemptWorkspace({
           </div>
         </Dialog>
       )}
-    </>
+    </div>
   )
 }

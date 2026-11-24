@@ -22,7 +22,7 @@ export function PublishedAssignmentResults({ offeringId }: { offeringId?: number
   )
   return (
     <div className="course-workspace">
-      {offeringId && <Link to="/results">All course results</Link>}
+      {/* {offeringId && <Link to="/results">All course results</Link>} */}
       <PageHeader title="My results" />
       <Panel title="Published assignment results" icon="results">
         <LoadState {...result} retry={result.reload} />

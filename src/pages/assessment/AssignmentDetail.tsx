@@ -31,7 +31,31 @@ export function AssignmentDetail() {
         >
           <div className={result.error ? 'offering-content permission-lost' : 'offering-content'}>
             <AssignmentNav view={view} />
-            <Panel title={view.assignment.title} icon="book-small">
+            <Panel
+              title={view.assignment.title}
+              icon="book-small"
+              actions={
+                view.teacher &&
+                view.writable && (
+                  <>
+                    <Button icon="edit" tone="secondary" onClick={() => setEdit(true)}>
+                      {view.assignment.status === 'DRAFT' ? 'Edit assignment' : 'Extend deadlines'}
+                    </Button>
+                    <Button
+                      danger
+                      icon="archive-white"
+                      tone="secondary"
+                      onClick={() => {
+                        setArchiveVersion(view.assignment.version)
+                        setArchive(true)
+                      }}
+                    >
+                      Archive assignment
+                    </Button>
+                  </>
+                )
+              }
+            >
               <p className="activity-meta">
                 <Badge value={view.assignment.status} /> · {view.assignment.mode.toLowerCase()} ·{' '}
                 {view.assignment.maxScore} points · {view.assignment.weight}% weight ·{' '}
@@ -42,30 +66,6 @@ export function AssignmentDetail() {
               )}
               <Schedule view={view} />
               {view.attachments.length > 0 && <FileList files={view.attachments} />}
-              {view.teacher && (
-                <div className="actions">
-                  {view.writable && (
-                    <>
-                      <Button icon="edit" tone="secondary" onClick={() => setEdit(true)}>
-                        {view.assignment.status === 'DRAFT'
-                          ? 'Edit assignment'
-                          : 'Extend deadlines'}
-                      </Button>
-                      <Button
-                        danger
-                        icon="archive-white"
-                        tone="secondary"
-                        onClick={() => {
-                          setArchiveVersion(view.assignment.version)
-                          setArchive(true)
-                        }}
-                      >
-                        Archive assignment
-                      </Button>
-                    </>
-                  )}
-                </div>
-              )}
             </Panel>
             {apiMode && view.teacher && (
               <MvpSubmissionReview
